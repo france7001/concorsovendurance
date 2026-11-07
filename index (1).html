@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VEndurance - Polisportiva Venturina Terme</title>
+    <link rel="icon" type="image/jpeg" href="images/logo-polisportiva.jpeg">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome per icone sportive -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        royal: {
+                            50: '#f0f6ff',
+                            100: '#e0edff',
+                            400: '#3882f6',
+                            500: '#1d61f2',
+                            600: '#1849d6',
+                            800: '#17369b',
+                            900: '#172f7a',
+                            dark: '#0c1a47'
+                        },
+                        tricolore: {
+                            green: '#009246',
+                            white: '#ffffff',
+                            red: '#ce2b37'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-jersey {
+            background: linear-gradient(135deg, #1d61f2 0%, #3882f6 50%, #ffffff 100%);
+        }
+        .header-bg {
+            background: linear-gradient(135deg, #0c1a47 0%, #17369b 60%, #1d61f2 100%);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+        /* Classifica su telefono: Pos | Atleta | colonna a scelta | Punti */
+        @media screen and (max-width: 767px) {
+            #leaderboard-table .mcol { display: none; }
+            #leaderboard-table[data-mcol="0"] .mcol-0,
+            #leaderboard-table[data-mcol="1"] .mcol-1,
+            #leaderboard-table[data-mcol="2"] .mcol-2,
+            #leaderboard-table[data-mcol="3"] .mcol-3,
+            #leaderboard-table[data-mcol="4"] .mcol-4,
+            #leaderboard-table[data-mcol="5"] .mcol-5 { display: table-cell; }
+            #leaderboard-table th, #leaderboard-table td { padding-left: 0.5rem; padding-right: 0.5rem; }
+            #leaderboard-table th:last-child, #leaderboard-table td:last-child { padding-right: 0.75rem; }
+            #leaderboard-table .lb-name { word-break: break-word; }
+            #leaderboard-scroll { touch-action: pan-y; }
+        }
+        @media print {
+            header, footer, #banner-read-only, #banner-admin-active, #season-banner, #podium-container,
+            .lb-mobile-switcher, .lb-controls, .lb-legend { display: none !important; }
+            body { background: #fff !important; }
+            #leaderboard-scroll { overflow: visible !important; }
+            #leaderboard-table { min-width: 0 !important; }
+            #print-title { display: block !important; }
+            tr { break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased selection:bg-royal-600 selection:text-white">
+
+    <!-- HEADER / LOGO SOCIETARIO -->
+    <header class="header-bg text-white shadow-xl sticky top-0 z-40 border-b-4 border-royal-400">
+        <!-- Bordo Tricolore Superiore -->
+        <div class="h-1.5 w-full grid grid-cols-3">
+            <div class="bg-tricolore-green"></div>
+            <div class="bg-white"></div>
+            <div class="bg-tricolore-red"></div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                
+                <!-- Logo & Brand Info -->
+                <div class="flex items-center space-x-3.5">
+                    <div class="relative group">
+                        <div id="logo-container" class="bg-white rounded-full shadow-md w-14 h-14 flex items-center justify-center shrink-0 border-2 border-slate-200 overflow-hidden">
+                            <img id="custom-logo-img" src="images/logo-polisportiva.jpeg" class="w-full h-full object-cover rounded-full scale-[1.04]" alt="Logo Polisportiva Venturina Terme 1980">
+                        </div>
+                        <button onclick="triggerLogoUpload()" id="btn-change-logo" class="admin-only hidden absolute -bottom-1 -right-1 bg-white text-royal-800 p-1 rounded-full shadow border border-slate-200 text-[10px] hover:bg-slate-100 transition" title="Cambia Logo">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                        <input type="file" id="logo-file-input" accept="image/*" class="hidden" onchange="handleLogoUpload(event)">
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-2xl font-black tracking-tight italic uppercase text-white">V<span class="text-sky-300">Endurance</span></h1>
+                            <span class="bg-white/20 text-white text-[11px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur-sm border border-white/20">2026-2027</span>
+                        </div>
+                        <p class="text-xs text-sky-200 font-semibold tracking-wide uppercase">Polisportiva Venturina Terme A.S.D.</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs & Login PIN -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <nav class="flex bg-royal-dark/60 p-1 rounded-xl border border-white/10 backdrop-blur-md">
+                        <button onclick="switchTab('leaderboard')" id="tab-btn-leaderboard" class="nav-tab px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 bg-white text-royal-800 shadow">
+                            <i class="fa-solid fa-trophy mr-1.5 text-amber-500"></i>Classifica
+                        </button>
+                        <button onclick="switchTab('add-race')" id="tab-btn-add-race" class="admin-only hidden nav-tab px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 text-sky-100 hover:text-white hover:bg-white/10">
+                            <i class="fa-solid fa-users-rectangle mr-1.5 text-emerald-400"></i>Inserisci Gara (Gruppo)
+                        </button>
+                        <button onclick="switchTab('history')" id="tab-btn-history" class="nav-tab px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 text-sky-100 hover:text-white hover:bg-white/10">
+                            <i class="fa-solid fa-list-check mr-1.5 text-sky-300"></i>Registro Gare
+                        </button>
+                        <button onclick="switchTab('athletes')" id="tab-btn-athletes" class="admin-only hidden nav-tab px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 text-sky-100 hover:text-white hover:bg-white/10">
+                            <i class="fa-solid fa-address-card mr-1.5 text-indigo-300"></i>Rosa Atleti
+                        </button>
+                    </nav>
+
+                    <button onclick="openRulesModal()" class="bg-white/10 hover:bg-white/20 text-white p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 border border-white/10" title="Regolamento">
+                        <i class="fa-solid fa-book-bookmark text-amber-300"></i>
+                        <span class="hidden sm:inline">Regolamento</span>
+                    </button>
+
+                    <!-- Login / Logout PIN Gestore -->
+                    <button id="btn-admin-login" onclick="openAdminModal()" class="bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-key"></i> <span>Login Gestore</span>
+                    </button>
+                    <button id="btn-admin-logout" onclick="logoutAdmin()" class="hidden bg-red-500/80 hover:bg-red-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- BANNER MODALITÀ Sola Lettura / Gestore -->
+    <div id="banner-read-only" class="bg-sky-100 border-b border-sky-200 text-sky-900 px-4 py-2 text-xs font-semibold flex items-center justify-between">
+        <div class="max-w-7xl mx-auto w-full flex items-center justify-between">
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-eye text-sky-600"></i>
+                <span><strong>Modalità Consultazione:</strong> Classifica aggiornata in sola lettura per gli atleti.</span>
+            </span>
+            <button onclick="openAdminModal()" class="underline font-bold hover:text-royal-800">Sei un gestore? Accedi con PIN</button>
+        </div>
+    </div>
+
+    <div id="banner-admin-active" class="hidden bg-emerald-600 border-b border-emerald-700 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-inner">
+        <div class="max-w-7xl mx-auto w-full flex items-center justify-between">
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-user-shield text-amber-300"></i>
+                <span><strong>MODALITÀ GESTORE ATTIVA:</strong> Puoi registrare nuove gare, modificare atleti ed esportare i dati.</span>
+            </span>
+            <button onclick="logoutAdmin()" class="bg-emerald-800 hover:bg-emerald-900 px-2.5 py-1 rounded text-[11px] transition">Disattiva Gestore</button>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT WRAPPER -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- BANNER RIASSUNTIVO STAGIONE -->
+        <div id="season-banner" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-royal-50 text-royal-600 flex items-center justify-center shrink-0 border border-royal-100">
+                    <i class="fa-solid fa-person-running text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-slate-800">Concorso a Punti Stagionale</h2>
+                    <p class="text-xs text-slate-500">Periodo di validità: 1° Settembre 2026 – 31 Agosto 2027</p>
+                </div>
+            </div>
+            
+            <div class="w-full sm:w-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-4">
+                    <div class="text-center sm:text-right bg-royal-50/60 sm:bg-transparent border border-royal-100 sm:border-0 rounded-xl py-2 sm:py-0">
+                        <span class="text-[11px] text-slate-400 uppercase font-bold block">Atleti Iscritti</span>
+                        <span id="stat-total-athletes" class="text-xl sm:text-base font-black text-royal-600">0</span>
+                    </div>
+                    <div class="hidden sm:block h-8 w-px bg-slate-200"></div>
+                    <div class="text-center sm:text-right bg-emerald-50/60 sm:bg-transparent border border-emerald-100 sm:border-0 rounded-xl py-2 sm:py-0">
+                        <span class="text-[11px] text-slate-400 uppercase font-bold block">Gare Registrate</span>
+                        <span id="stat-total-races" class="text-xl sm:text-base font-black text-emerald-600">0</span>
+                    </div>
+                </div>
+
+                <div class="admin-only hidden">
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 sm:pt-0 sm:border-0 sm:flex sm:items-center sm:gap-4">
+                        <div class="hidden sm:block h-8 w-px bg-slate-200"></div>
+                        <button onclick="exportDataJSON()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-2.5 py-2.5 sm:py-1.5 rounded-xl font-bold transition flex items-center justify-center gap-1" title="Backup Dati JSON">
+                            <i class="fa-solid fa-download text-slate-500"></i> Backup
+                        </button>
+                        <button onclick="triggerImportJSON()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-2.5 py-2.5 sm:py-1.5 rounded-xl font-bold transition flex items-center justify-center gap-1 sm:-ml-2.5" title="Ripristina Dati JSON">
+                            <i class="fa-solid fa-upload text-slate-500"></i> Import
+                        </button>
+                    </div>
+                    <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="importDataJSON(event)">
+                </div>
+            </div>
+        </div>
+
+        <!-- SEZIONE 1: TABELLA CLASSIFICA -->
+        <section id="view-leaderboard" class="tab-content space-y-6">
+            
+            <!-- Podium Top 3 Cards -->
+            <div id="podium-container" class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-2">
+                <!-- Generato dinamicamente via JS -->
+            </div>
+
+            <!-- Main Leaderboard Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/60">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-ranking-star text-royal-600"></i>
+                            Classifica Generale Individuale
+                        </h2>
+                        <p class="text-xs text-slate-500">Parità risolta per maggior numero di gare valide concluse.</p>
+                        <p id="print-title" class="hidden text-xs text-slate-700 font-semibold mt-1"></p>
+                    </div>
+
+                    <!-- Search & Filters -->
+                    <div class="lb-controls flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                        <select id="leaderboard-filter-discipline" onchange="renderLeaderboard()" class="w-full sm:w-auto px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                            <option value="">Tutti i Punti</option>
+                            <option value="podismo">Solo Podismo</option>
+                            <option value="triathlon">Solo Triathlon</option>
+                            <option value="ciclismo">Solo Ciclismo</option>
+                        </select>
+
+                        <div class="relative w-full sm:w-56">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" id="leaderboard-search" oninput="renderLeaderboard()" placeholder="Cerca atleta..." class="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                        </div>
+
+                        <button onclick="downloadLeaderboardPDF()" class="admin-only hidden w-full sm:w-auto justify-center bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 shrink-0" title="Salva la classifica in PDF">
+                            <i class="fa-solid fa-file-pdf"></i> Scarica PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Table -->
+                <!-- Selettore colonna centrale (solo telefono) -->
+                <div class="lb-mobile-switcher md:hidden flex items-center justify-between gap-2 px-3 py-2 border-b border-slate-100 bg-white">
+                    <button type="button" onclick="shiftMobileCol(-1)" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center active:bg-slate-200" aria-label="Colonna precedente">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
+                    <div class="text-center">
+                        <div id="lb-mobile-label" class="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Gare Tot.</div>
+                        <div id="lb-mobile-dots" class="flex items-center justify-center gap-1 mt-1"></div>
+                    </div>
+                    <button type="button" onclick="shiftMobileCol(1)" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center active:bg-slate-200" aria-label="Colonna successiva">
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+                <div id="leaderboard-scroll" class="overflow-x-auto custom-scrollbar">
+                    <table id="leaderboard-table" data-mcol="0" class="w-full text-left border-collapse md:min-w-[720px]">
+                        <thead>
+                            <tr class="bg-slate-100/80 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4 text-center w-14">Pos</th>
+                                <th class="py-3 px-4">Atleta</th>
+                                <th class="mcol mcol-0 py-3 px-4 text-center">Gare Tot.</th>
+                                <th class="mcol mcol-1 py-3 px-4 text-center">Podismo</th>
+                                <th class="mcol mcol-2 py-3 px-4 text-center">Triathlon</th>
+                                <th class="mcol mcol-3 py-3 px-4 text-center">Ciclismo</th>
+                                <th class="mcol mcol-4 py-3 px-4 text-center">Staff/Org.</th>
+                                <th class="mcol mcol-5 py-3 px-4 text-center">Premio Previsto</th>
+                                <th class="py-3 px-4 text-right pr-6">Punti Totali</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-tbody" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Righe inserite dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Legenda Premi -->
+                <div class="lb-legend p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span class="flex items-center gap-1 font-semibold text-amber-700"><i class="fa-solid fa-crown text-amber-500"></i> 1° Iscrizione 100% Free</span>
+                        <span class="flex items-center gap-1 font-semibold text-slate-700">🥈 2° Sconto 50%</span>
+                        <span class="flex items-center gap-1 font-semibold text-amber-900">🥉 3° Sconto 25%</span>
+                        <span class="flex items-center gap-1 text-slate-600">4°-5° Sconto 12% - 6%</span>
+                        <span class="flex items-center gap-1 text-purple-700">6°-10° Gadget Ufficiale</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- SEZIONE 2: MODULO INSERIMENTO GARA (MULTI-ATLETA) -->
+        <section id="view-add-race" class="tab-content hidden max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 header-bg text-white">
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-users-rectangle text-sky-300"></i>
+                        Registra Gara di Gruppo o Singola
+                    </h2>
+                    <p class="text-xs text-sky-200 mt-1">Imposta i dettagli della manifestazione e seleziona tutti gli atleti che hanno concluso la prova.</p>
+                </div>
+
+                <form id="add-race-form" onsubmit="handleAddRaceGroup(event)" class="p-6 space-y-6">
+                    
+                    <!-- 1. Dettagli Manifestazione -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Data Gara *</label>
+                            <input type="date" id="race-date" required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Nome Manifestazione *</label>
+                            <input type="text" id="race-name" placeholder="Es. Maratona di Firenze, Corri a Venturina..." required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- 2. Selezione Disciplina con Icone -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Disciplina *</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="discipline" value="podismo" checked onchange="renderCategoryCards()" class="peer hidden">
+                                <div class="p-3 text-center border-2 border-slate-200 rounded-xl peer-checked:border-royal-600 peer-checked:bg-royal-50 text-slate-600 peer-checked:text-royal-800 transition shadow-sm">
+                                    <i class="fa-solid fa-person-running text-2xl block mb-1"></i>
+                                    <span class="text-xs font-bold block">Podismo / Trail</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="discipline" value="triathlon" onchange="renderCategoryCards()" class="peer hidden">
+                                <div class="p-3 text-center border-2 border-slate-200 rounded-xl peer-checked:border-sky-600 peer-checked:bg-sky-50 text-slate-600 peer-checked:text-sky-800 transition shadow-sm">
+                                    <span class="flex items-center justify-center gap-1 h-8 mb-1" aria-hidden="true" title="Nuoto · Bici · Corsa">
+                                        <i class="fa-solid fa-person-swimming text-base"></i>
+                                        <i class="fa-solid fa-person-biking text-base"></i>
+                                        <i class="fa-solid fa-person-running text-base"></i>
+                                    </span>
+                                    <span class="text-xs font-bold block">Triathlon</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="discipline" value="ciclismo" onchange="renderCategoryCards()" class="peer hidden">
+                                <div class="p-3 text-center border-2 border-slate-200 rounded-xl peer-checked:border-emerald-600 peer-checked:bg-emerald-50 text-slate-600 peer-checked:text-emerald-800 transition shadow-sm">
+                                    <i class="fa-solid fa-person-biking text-2xl block mb-1"></i>
+                                    <span class="text-xs font-bold block">Ciclismo (GF/MF)</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="discipline" value="staff" onchange="renderCategoryCards()" class="peer hidden">
+                                <div class="p-3 text-center border-2 border-slate-200 rounded-xl peer-checked:border-purple-600 peer-checked:bg-purple-50 text-slate-600 peer-checked:text-purple-800 transition shadow-sm">
+                                    <i class="fa-solid fa-hands-helping text-2xl block mb-1"></i>
+                                    <span class="text-xs font-bold block">Staff / Volontario</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 3. Selezione Distanza / Punteggio -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Seleziona Distanza e Punteggio Ufficiale *</label>
+                        <div id="category-cards-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                            <!-- Card categorie inserite via JS -->
+                        </div>
+
+                        <div id="custom-points-container" class="hidden mt-3 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                            <label class="block text-xs font-bold text-amber-900 mb-1">Punteggio Disciplina Atipica (1 - 12 punti)</label>
+                            <input type="number" id="custom-points-input" min="1" max="12" value="3" onchange="updateSelectedPointsBadge()" class="w-full sm:w-32 p-2 bg-white border border-amber-300 rounded-lg text-sm font-bold text-amber-900 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- 4. SELEZIONE MULTIPLA ATLETI -->
+                    <div class="border-t border-slate-200 pt-5">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Atleti Partecipanti *</label>
+                                <p class="text-[11px] text-slate-500">Spunta tutti gli atleti che hanno completato la gara.</p>
+                            </div>
+                            
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="selectAllAthletes(true)" class="text-[11px] bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 px-2.5 py-1 rounded-lg transition">Seleziona Tutti</button>
+                                <button type="button" onclick="selectAllAthletes(false)" class="text-[11px] bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 px-2.5 py-1 rounded-lg transition">Deseleziona</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" id="athlete-search-form" oninput="filterAthletesInForm()" placeholder="Filtra atleti nell'elenco..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                        </div>
+
+                        <div id="athletes-checkbox-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200 custom-scrollbar">
+                            <!-- Popolato via JS -->
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Link Classifica / Prove (Opzionale)</label>
+                        <input type="url" id="race-proof" placeholder="https://www.endu.net/..." class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                    </div>
+
+                    <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-500 font-semibold">Punti ad Atleta:</span>
+                            <span id="summary-points-badge" class="bg-royal-600 text-white font-black text-xs px-2.5 py-1 rounded-lg">1 Pt</span>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="switchTab('leaderboard')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-bold transition">Annulla</button>
+                            <button type="submit" class="px-6 py-2.5 rounded-xl bg-royal-600 hover:bg-royal-800 text-white text-xs font-bold transition shadow-md flex items-center gap-2">
+                                <i class="fa-solid fa-check"></i> Registra Gara Gruppo
+                            </button>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+        </section>
+
+        <!-- SEZIONE 3: REGISTRO STORICO GARE -->
+        <section id="view-history" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/60">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-royal-600"></i>
+                            Registro Generale Gare Registrate
+                        </h2>
+                        <p class="text-xs text-slate-500">Storico completo. I gestori possono cancellare inserimenti errati.</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full sm:w-auto">
+                        <div class="relative col-span-2 w-full sm:w-48">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" id="history-search-race" oninput="renderHistory()" placeholder="Cerca gara..." class="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                        </div>
+
+                        <select id="history-filter-athlete" onchange="renderHistory()" class="w-full sm:w-auto min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                            <option value="">Tutti gli atleti</option>
+                        </select>
+
+                        <select id="history-filter-discipline" onchange="renderHistory()" class="w-full sm:w-auto min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                            <option value="">Tutte le discipline</option>
+                            <option value="podismo">Podismo</option>
+                            <option value="triathlon">Triathlon</option>
+                            <option value="ciclismo">Ciclismo</option>
+                            <option value="staff">Staff</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Schede gare (solo telefono) -->
+                <div id="history-cards" class="md:hidden divide-y divide-slate-100"></div>
+
+                <div class="hidden md:block overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse min-w-[750px]">
+                        <thead>
+                            <tr class="bg-slate-100/80 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">Data</th>
+                                <th class="py-3 px-4">Atleta</th>
+                                <th class="py-3 px-4">Gara / Manifestazione</th>
+                                <th class="py-3 px-4">Disciplina & Categoria</th>
+                                <th class="py-3 px-4 text-center">Punti</th>
+                                <th class="py-3 px-4 text-center">Link</th>
+                                <th class="py-3 px-4 text-right pr-6 admin-only hidden">Elimina</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Inserito dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEZIONE 4: ROSA ATLETI SOCIETÀ (SOLO GESTORE) -->
+        <section id="view-athletes" class="tab-content hidden space-y-6 max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-address-card text-indigo-600"></i>
+                            Gestione Rosa Atleti Tesserati
+                        </h2>
+                        <p class="text-xs text-slate-500">Aggiungi o rimuovi componenti della Polisportiva Venturina Terme.</p>
+                    </div>
+
+                    <button onclick="openAddAthleteModal()" class="w-full sm:w-auto justify-center bg-royal-600 hover:bg-royal-800 text-white text-sm sm:text-xs px-3.5 py-2.5 sm:py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-sm shrink-0">
+                        <i class="fa-solid fa-user-plus"></i> Nuovo Atleta
+                    </button>
+                </div>
+
+                <!-- Schede atleti (solo telefono) -->
+                <div id="athletes-cards" class="sm:hidden divide-y divide-slate-100"></div>
+
+                <div class="hidden sm:block overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/80 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">Nome e Cognome</th>
+                                <th class="py-3 px-4">Categoria / Note</th>
+                                <th class="py-3 px-4 text-center">Gare Svolte</th>
+                                <th class="py-3 px-4 text-right pr-6">Azione</th>
+                            </tr>
+                        </thead>
+                        <tbody id="athletes-tbody" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Dinamico via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-royal-dark text-slate-300 text-xs border-t border-royal-900 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-white uppercase tracking-wider text-sm">Polisportiva Venturina Terme</span>
+                <span>• Concorso VEndurance</span>
+            </div>
+            <p class="text-slate-400">Regolamento stagione 2026-2027 • Valido fino al 31/08/2027</p>
+        </div>
+    </footer>
+
+    <!-- MODAL PIN GESTORE -->
+    <div id="modal-admin-login" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-sm overflow-hidden">
+            <div class="header-bg text-white p-4 flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-key text-amber-300"></i> Autenticazione Gestore
+                </h3>
+                <button onclick="closeAdminModal()" class="text-white/80 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="handleAdminLogin(event)" class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">PIN di Accesso</label>
+                    <input type="password" id="admin-pin-input" placeholder="Inserisci PIN gestore..." required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-center text-lg font-bold tracking-widest focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeAdminModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-bold transition">Annulla</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-royal-600 hover:bg-royal-800 text-white text-xs font-bold transition">Accedi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL AGGIUNGI ATLETA -->
+    <div id="modal-add-athlete" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden">
+            <div class="header-bg text-white p-4 flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-sky-300"></i> Aggiungi Atleta in Rosa
+                </h3>
+                <button onclick="closeAddAthleteModal()" class="text-white/80 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="handleAddAthlete(event)" class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nome e Cognome *</label>
+                    <input type="text" id="new-athlete-name" required placeholder="Es. Mario Rossi" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Categoria / Note (Opzionale)</label>
+                    <input type="text" id="new-athlete-notes" placeholder="Es. SM45, Master..." class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeAddAthleteModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-bold transition">Annulla</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-royal-600 hover:bg-royal-800 text-white text-xs font-bold transition">Salva Atleta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL REGOLAMENTO -->
+    <div id="modal-rules" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="header-bg text-white p-4 flex items-center justify-between shrink-0">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-book-bookmark text-amber-300"></i> Regolamento VEndurance 2026-2027
+                </h3>
+                <button onclick="closeRulesModal()" class="text-white/80 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-6 text-xs text-slate-600 custom-scrollbar">
+                <div class="bg-royal-50 p-3.5 rounded-xl border border-royal-200">
+                    <h4 class="font-bold text-royal-800 text-sm mb-1">Finalità del Concorso</h4>
+                    <p>Valido dal 1° Settembre 2026 al 31 Agosto 2027 per tutti gli atleti tesserati della Polisportiva Venturina Terme. Premia la continuità, la partecipazione e i risultati agonistici.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                        <h4 class="font-bold text-royal-700 text-xs uppercase border-b pb-1 mb-2">Podismo & Trail</h4>
+                        <ul class="space-y-1 text-[11px]">
+                            <li>• Fino a 15 km: <strong>1 pt</strong></li>
+                            <li>• Giro Valli Etrusche: <strong>2 pt</strong></li>
+                            <li>• 15.1 km - 19.9 km: <strong>2 pt</strong></li>
+                            <li>• Mezza Maratona (21k): <strong>3 pt</strong></li>
+                            <li>• Gare Societarie: <strong>3 pt</strong></li>
+                            <li>• 22 - 31 km: <strong>4 pt</strong></li>
+                            <li>• Maratona (32-42.195k): <strong>5 pt</strong></li>
+                            <li>• Ultra 43 - 65 km: <strong>6 pt</strong></li>
+                            <li>• Ultra 66 - 85 km: <strong>8 pt</strong></li>
+                            <li>• Ultra 86 - 100 km: <strong>9 pt</strong></li>
+                            <li>• Oltre 100 km: <strong>10 pt</strong></li>
+                        </ul>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                        <h4 class="font-bold text-sky-700 text-xs uppercase border-b pb-1 mb-2">Triathlon</h4>
+                        <ul class="space-y-1 text-[11px]">
+                            <li>• Sprint: <strong>3 pt</strong></li>
+                            <li>• Olimpico: <strong>6 pt</strong></li>
+                            <li>• Medio / 70.3: <strong>9 pt</strong></li>
+                            <li>• Full / Ironman: <strong>12 pt</strong></li>
+                        </ul>
+                        <h4 class="font-bold text-purple-700 text-xs uppercase border-b pb-1 mb-1 mt-3">Staff Società</h4>
+                        <p class="text-[10px]">Volontari ed organizzazione gare societarie: <strong>3 pt</strong></p>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                        <h4 class="font-bold text-emerald-700 text-xs uppercase border-b pb-1 mb-2">Ciclismo (GF/MF)</h4>
+                        <ul class="space-y-1 text-[11px]">
+                            <li>• 40 - 79 km: <strong>3 pt</strong></li>
+                            <li>• 80 - 119 km: <strong>6 pt</strong></li>
+                            <li>• 120 - 179 km: <strong>9 pt</strong></li>
+                            <li>• ≥ 180 km: <strong>12 pt</strong></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="border-t pt-4">
+                    <h4 class="font-bold text-slate-800 text-xs uppercase mb-2">Premi di Fine Stagione</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                        <div class="bg-amber-50 p-2 rounded-lg border border-amber-200 font-bold text-amber-900">🥇 1° Iscrizione Gratuita</div>
+                        <div class="bg-slate-100 p-2 rounded-lg border border-slate-200 font-bold text-slate-800">🥈 2° Sconto 50%</div>
+                        <div class="bg-amber-100/40 p-2 rounded-lg border border-amber-300 font-bold text-amber-950">🥉 3° Sconto 25%</div>
+                        <div class="bg-sky-50 p-2 rounded-lg border border-sky-200 font-semibold text-sky-900">4° Sconto 12%</div>
+                        <div class="bg-sky-50 p-2 rounded-lg border border-sky-200 font-semibold text-sky-900">5° Sconto 6%</div>
+                        <div class="bg-purple-50 p-2 rounded-lg border border-purple-200 font-semibold text-purple-900">6°-10° Gadget Ufficiale</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
+                <button onclick="closeRulesModal()" class="px-5 py-2 bg-royal-dark hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cloud-status" style="position:fixed;bottom:8px;left:8px;z-index:9999;font:12px sans-serif;padding:4px 10px;border-radius:999px;background:#475569;color:#fff;max-width:90vw">☁ v2 · avvio…</div>
+    <!-- LOGIC SYSTEM & DATA STORAGE -->
+    <script>
+        // Configurazione Supabase per VEndurance
+        const SUPABASE_URL = 'https://vtzlvwhgpfaefeewbxva.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_mjOcHSLgC1aZA9HpyzHNrQ_dMzGzYz2';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        const PIN_ADMIN = "ven2026";
+        let isAdmin = false;
+
+        const DEFAULT_ATHLETES = [
+            { id: '1', name: 'Andrea Cheli', notes: 'SM40' },
+            { id: '2', name: 'Marco Benifei', notes: 'SM50' },
+            { id: '3', name: 'Elena Pacini', notes: 'SF35' },
+            { id: '4', name: 'Stefano Bianchi', notes: 'SM45' },
+            { id: '5', name: 'Giulia Venturi', notes: 'SF40' },
+            { id: '6', name: 'Roberto Mannari', notes: 'SM55' },
+            { id: '7', name: 'Lorenzo Geri', notes: 'SM35' }
+        ];
+
+        const DEFAULT_RACES = [
+            { id: 'r1', athleteid: '1', date: '2026-09-15', name: 'Mezza Maratona di Livorno', discipline: 'podismo', categorykey: 'podismo_21k', points: 3, proof: '' },
+            { id: 'r2', athleteid: '1', date: '2026-10-04', name: 'Granfondo Campagnolo Roma', discipline: 'ciclismo', categorykey: 'ciclismo_120_179', points: 9, proof: '' },
+            { id: 'r3', athleteid: '2', date: '2026-09-20', name: 'Triathlon Sprint Elba', discipline: 'triathlon', categorykey: 'triathlon_sprint', points: 3, proof: '' },
+            { id: 'r4', athleteid: '3', date: '2026-09-10', name: 'Giro Podistico Valli Etrusche', discipline: 'podismo', categorykey: 'podismo_valli_etrusche', points: 2, proof: '' },
+            { id: 'r5', athleteid: '3', date: '2026-10-18', name: 'Chianti Ultra Trail (43k)', discipline: 'podismo', categorykey: 'podismo_43_65', points: 6, proof: '' },
+            { id: 'r6', athleteid: '4', date: '2026-09-05', name: 'Staff Organizzativo Corsa Campestre', discipline: 'staff', categorykey: 'staff_org', points: 3, proof: '' }
+        ];
+
+        const CATEGORIES_MAP = {
+            podismo: [
+                { key: 'podismo_15', label: 'Gara ≤ 15 km', points: 1, desc: 'Corse brevi' },
+                { key: 'podismo_valli_etrusche', label: 'Valli Etrusche', points: 2, desc: 'Tappa speciale' },
+                { key: 'podismo_15_20', label: '15.1 - 19.9 km', points: 2, desc: 'Distanza intermedia' },
+                { key: 'podismo_21k', label: 'Mezza Maratona', points: 3, desc: '21,097 km' },
+                { key: 'podismo_societaria', label: 'Gara Societaria', points: 3, desc: 'Organizzata Venturina' },
+                { key: 'podismo_22_31', label: '22 - 31 km', points: 4, desc: 'Lungo' },
+                { key: 'podismo_32_42', label: 'Maratona (42k)', points: 5, desc: '32 - 42.195 km' },
+                { key: 'podismo_43_65', label: 'Ultra 43-65 km', points: 6, desc: 'Trail / Ultra' },
+                { key: 'podismo_66_85', label: 'Ultra 66-85 km', points: 8, desc: 'Ultra trail' },
+                { key: 'podismo_86_100', label: 'Ultra 86-100 km', points: 9, desc: 'Ultra 100km' },
+                { key: 'podismo_100plus', label: 'Ultra > 100 km', points: 10, desc: 'Extrema' },
+                { key: 'podismo_atipica', label: 'Atipica', points: 'custom', desc: 'Swimrun/Duathlon' }
+            ],
+            triathlon: [
+                { key: 'triathlon_sprint', label: 'Sprint', points: 3, desc: '750m / 20k / 5k' },
+                { key: 'triathlon_olimpico', label: 'Olimpico', points: 6, desc: '1.5k / 40k / 10k' },
+                { key: 'triathlon_medio', label: 'Medio / 70.3', points: 9, desc: '1.9k / 90k / 21k' },
+                { key: 'triathlon_full', label: 'Full / Ironman', points: 12, desc: '3.8k / 180k / 42k' },
+                { key: 'triathlon_atipica', label: 'Atipica', points: 'custom', desc: 'Swimrun/Duathlon' }
+            ],
+            ciclismo: [
+                { key: 'ciclismo_40_79', label: 'MF 40 - 79 km', points: 3, desc: 'Mediofondo breve' },
+                { key: 'ciclismo_80_119', label: 'MF 80 - 119 km', points: 6, desc: 'Mediofondo' },
+                { key: 'ciclismo_120_179', label: 'GF 120 - 179 km', points: 9, desc: 'Granfondo' },
+                { key: 'ciclismo_180plus', label: 'GF ≥ 180 km', points: 12, desc: 'Granfondo lunga' }
+            ],
+            staff: [
+                { key: 'staff_org', label: 'Volontario / Staff', points: 3, desc: 'Supporto gara societaria' }
+            ]
+        };
+
+        let athletes = [];
+        let races = [];
+        let selectedCategoryKey = '';
+
+
+
+        let _rtState = '';
+        function setCloud(ok, msg) {
+            const el = document.getElementById('cloud-status');
+            if (!el) return;
+            el.style.background = ok ? '#047857' : '#b91c1c';
+            el.textContent = (ok ? '☁ v2 · ' : '☁ v2 · ERRORE: ') + msg + (ok && _rtState ? ' · live ' + _rtState : '');
+        }
+
+        // --- SINCRONIZZAZIONE TRA DISPOSITIVI ---
+        let _syncTimer = null, _syncBusy = false;
+        function scheduleRefresh() {
+            clearTimeout(_syncTimer);
+            _syncTimer = setTimeout(refreshAll, 400);
+        }
+        async function refreshAll() {
+            if (_syncBusy) return;
+            _syncBusy = true;
+            try {
+                const prevAth = athletes.map(a => a.id + a.name).join('|');
+                await loadDataFromSupabase(true);
+                renderLeaderboard();
+                renderHistory();
+                renderAthletesList();
+                if (prevAth !== athletes.map(a => a.id + a.name).join('|')) renderAthletesCheckboxes();
+                updateHeaderStats();
+            } finally { _syncBusy = false; }
+        }
+        function startSync() {
+            try {
+                supabaseClient.channel('vendurance-sync')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'races' }, scheduleRefresh)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'athletes' }, scheduleRefresh)
+                    .subscribe((st) => { _rtState = (st === 'SUBSCRIBED') ? 'ok' : 'non attivo'; });
+            } catch (e) { console.warn('Realtime non disponibile', e); }
+            setInterval(scheduleRefresh, 30000);
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleRefresh(); });
+        }
+
+        window.onload = async function() {
+            await loadDataFromSupabase();
+            loadCustomLogo();
+            renderCategoryCards();
+            renderAthletesCheckboxes();
+            initMobileColSwipe();
+            renderLeaderboard();
+            renderHistory();
+            renderAthletesList();
+            updateHeaderStats();
+            updateAdminUI();
+
+            document.getElementById('race-date').valueAsDate = new Date();
+            startSync();
+        };
+
+        async function loadDataFromSupabase(silent = false) {
+            try {
+                const { data: dbAthletes, error: errAth } = await supabaseClient.from('athletes').select('*');
+                if (errAth) throw errAth;
+
+                athletes = (dbAthletes || []).map(a => ({ id: String(a.id), name: a.name, notes: a.notes || '' }));
+
+                const { data: dbRaces, error: errRac } = await supabaseClient.from('races').select('*');
+                if (errRac) throw errRac;
+
+                races = (dbRaces || []).map(r => ({
+                    id: String(r.id),
+                    athleteId: String(r.athleteid || r.athleteId),
+                    date: r.date,
+                    name: r.name,
+                    discipline: r.discipline,
+                    categoryKey: r.categorykey || r.categoryKey,
+                    points: Number(r.points) || 0,
+                    proof: r.proof || ''
+                }));
+                setCloud(true, 'connesso · ' + athletes.length + ' atleti, ' + races.length + ' gare');
+            } catch (err) {
+                setCloud(false, (err && (err.message || err.details)) || 'connessione fallita');
+                console.error("Errore di caricamento da Supabase:", err);
+                if (!silent) alert("Impossibile connettersi al database cloud. Verifica la connessione.");
+            }
+        }
+
+        function openAdminModal() { document.getElementById('modal-admin-login').classList.remove('hidden'); }
+        function closeAdminModal() { 
+            document.getElementById('modal-admin-login').classList.add('hidden');
+            document.getElementById('admin-pin-input').value = '';
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const pin = document.getElementById('admin-pin-input').value.trim();
+            if (pin === PIN_ADMIN) {
+                isAdmin = true;
+                closeAdminModal();
+                updateAdminUI();
+            } else {
+                alert("PIN Errato! Riprova.");
+            }
+        }
+
+        function logoutAdmin() {
+            isAdmin = false;
+            updateAdminUI();
+            switchTab('leaderboard');
+        }
+
+        function updateAdminUI() {
+            const adminElements = document.querySelectorAll('.admin-only');
+            const bannerReadOnly = document.getElementById('banner-read-only');
+            const bannerAdmin = document.getElementById('banner-admin-active');
+            const btnLogin = document.getElementById('btn-admin-login');
+            const btnLogout = document.getElementById('btn-admin-logout');
+
+            if (isAdmin) {
+                adminElements.forEach(el => el.classList.remove('hidden'));
+                bannerReadOnly.classList.add('hidden');
+                bannerAdmin.classList.remove('hidden');
+                btnLogin.classList.add('hidden');
+                btnLogout.classList.remove('hidden');
+            } else {
+                adminElements.forEach(el => el.classList.add('hidden'));
+                bannerReadOnly.classList.remove('hidden');
+                bannerAdmin.classList.add('hidden');
+                btnLogin.classList.remove('hidden');
+                btnLogout.classList.add('hidden');
+            }
+            renderHistory();
+        }
+
+        function triggerLogoUpload() {
+            document.getElementById('logo-file-input').click();
+        }
+
+        function handleLogoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const base64Img = evt.target.result;
+                localStorage.setItem('vendurance_custom_logo', base64Img);
+                displayCustomLogo(base64Img);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadCustomLogo() {
+            const savedLogo = localStorage.getItem('vendurance_custom_logo');
+            if (savedLogo) {
+                displayCustomLogo(savedLogo);
+            }
+        }
+
+        function displayCustomLogo(src) {
+            const imgLogo = document.getElementById('custom-logo-img');
+            imgLogo.src = src;
+        }
+
+        function switchTab(tabId) {
+            if (!isAdmin && (tabId === 'add-race' || tabId === 'athletes')) {
+                alert("Area riservata ai gestori. Accedi con il PIN.");
+                return;
+            }
+
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('bg-white', 'text-royal-800', 'shadow');
+                el.classList.add('text-sky-100', 'hover:text-white', 'hover:bg-white/10');
+            });
+
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-white', 'text-royal-800', 'shadow');
+                activeBtn.classList.remove('text-sky-100', 'hover:text-white', 'hover:bg-white/10');
+            }
+
+            if(tabId === 'leaderboard') renderLeaderboard();
+            if(tabId === 'history') renderHistory();
+            if(tabId === 'athletes') renderAthletesList();
+        }
+
+        function renderLeaderboard() {
+            const tbody = document.getElementById('leaderboard-tbody');
+            const searchTerm = document.getElementById('leaderboard-search').value.toLowerCase().trim();
+            const filterDisc = document.getElementById('leaderboard-filter-discipline').value;
+
+            const leaderboardData = athletes.map(athlete => {
+                const athleteRaces = races.filter(r => r.athleteId === athlete.id);
+                
+                let totalPoints = 0;
+                let podismoPts = 0;
+                let triathlonPts = 0;
+                let ciclismoPts = 0;
+                let staffPts = 0;
+
+                athleteRaces.forEach(r => {
+                    const pts = Number(r.points) || 0;
+                    if (r.discipline === 'podismo') podismoPts += pts;
+                    else if (r.discipline === 'triathlon') triathlonPts += pts;
+                    else if (r.discipline === 'ciclismo') ciclismoPts += pts;
+                    else if (r.discipline === 'staff') staffPts += pts;
+
+                    if (!filterDisc) {
+                        totalPoints += pts;
+                    } else if (filterDisc === r.discipline) {
+                        totalPoints += pts;
+                    }
+                });
+
+                return {
+                    ...athlete,
+                    totalRaces: athleteRaces.length,
+                    totalPoints,
+                    podismoPts,
+                    triathlonPts,
+                    ciclismoPts,
+                    staffPts
+                };
+            });
+
+            leaderboardData.sort((a, b) => (b.totalPoints !== a.totalPoints) ? (b.totalPoints - a.totalPoints) : (b.totalRaces - a.totalRaces));
+
+            renderPodium(filterDisc ? [] : leaderboardData);
+
+            const filteredData = leaderboardData.filter(item => item.name.toLowerCase().includes(searchTerm));
+            tbody.innerHTML = '';
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-400">Nessun atleta trovato</td></tr>`;
+                return;
+            }
+
+            filteredData.forEach((item) => {
+                const realRank = leaderboardData.findIndex(a => a.id === item.id) + 1;
+                
+                let prizeBadge = '<span class="text-slate-300">-</span>';
+                let rowStyle = 'hover:bg-slate-50';
+                let rankDisplay = `<span class="font-bold text-slate-400">${realRank}°</span>`;
+
+                if (filterDisc) {
+                    // Nessun premio per filtri singoli
+                } else if (realRank === 1) {
+                    prizeBadge = '<span class="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-2 py-0.5 rounded-md inline-flex items-center gap-1"><i class="fa-solid fa-crown text-amber-500"></i> Iscrizione 100% Free</span>';
+                    rankDisplay = `<div class="w-7 h-7 rounded-full bg-amber-400 text-slate-900 font-black text-xs flex items-center justify-center shadow-sm mx-auto">1</div>`;
+                    rowStyle = 'bg-amber-50/40 hover:bg-amber-50/80 border-l-4 border-l-amber-400';
+                } else if (realRank === 2) {
+                    prizeBadge = '<span class="bg-slate-100 text-slate-800 border border-slate-300 font-bold text-[10px] px-2 py-0.5 rounded-md inline-flex">Sconto 50%</span>';
+                    rankDisplay = `<div class="w-7 h-7 rounded-full bg-slate-300 text-slate-900 font-black text-xs flex items-center justify-center shadow-sm mx-auto">2</div>`;
+                    rowStyle = 'bg-slate-50/70 hover:bg-slate-100 border-l-4 border-l-slate-400';
+                } else if (realRank === 3) {
+                    prizeBadge = '<span class="bg-amber-900/10 text-amber-900 border border-amber-800/20 font-bold text-[10px] px-2 py-0.5 rounded-md inline-flex">Sconto 25%</span>';
+                    rankDisplay = `<div class="w-7 h-7 rounded-full bg-amber-700 text-white font-black text-xs flex items-center justify-center shadow-sm mx-auto">3</div>`;
+                    rowStyle = 'bg-amber-900/5 hover:bg-amber-900/10 border-l-4 border-l-amber-700';
+                } else if (realRank === 4 || realRank === 5) {
+                    const disc = realRank === 4 ? '12%' : '6%';
+                    prizeBadge = `<span class="bg-royal-50 text-royal-800 border border-royal-200 font-semibold text-[10px] px-2 py-0.5 rounded-md inline-flex">Sconto ${disc}</span>`;
+                    rankDisplay = `<div class="w-6 h-6 rounded-full bg-royal-100 text-royal-800 font-bold text-xs flex items-center justify-center mx-auto">${realRank}</div>`;
+                    rowStyle = 'hover:bg-royal-50/40 border-l-4 border-l-royal-400';
+                } else if (realRank >= 6 && realRank <= 10) {
+                    prizeBadge = '<span class="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] px-2 py-0.5 rounded-md inline-flex font-medium">Gadget Ufficiale</span>';
+                    rankDisplay = `<div class="w-6 h-6 rounded-full bg-purple-100 text-purple-800 font-bold text-xs flex items-center justify-center mx-auto">${realRank}</div>`;
+                    rowStyle = 'hover:bg-purple-50/30 border-l-4 border-l-purple-300';
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = `${rowStyle} transition`;
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center">${rankDisplay}</td>
+                    <td class="lb-name py-3 px-4">
+                        <div class="font-bold text-slate-800">${item.name}</div>
+                        ${item.notes ? `<div class="text-[10px] text-slate-400">${item.notes}</div>` : ''}
+                    </td>
+                    <td class="mcol mcol-0 py-3 px-4 text-center font-semibold text-slate-700">${item.totalRaces}</td>
+                    <td class="mcol mcol-1 py-3 px-4 text-center">${item.podismoPts > 0 ? `<span class="text-royal-600 font-bold">${item.podismoPts}</span>` : '-'}</td>
+                    <td class="mcol mcol-2 py-3 px-4 text-center">${item.triathlonPts > 0 ? `<span class="text-sky-600 font-bold">${item.triathlonPts}</span>` : '-'}</td>
+                    <td class="mcol mcol-3 py-3 px-4 text-center">${item.ciclismoPts > 0 ? `<span class="text-emerald-600 font-bold">${item.ciclismoPts}</span>` : '-'}</td>
+                    <td class="mcol mcol-4 py-3 px-4 text-center">${item.staffPts > 0 ? `<span class="text-purple-600 font-bold">${item.staffPts}</span>` : '-'}</td>
+                    <td class="mcol mcol-5 py-3 px-4 text-center">${prizeBadge}</td>
+                    <td class="py-3 px-4 text-right pr-6 font-black text-slate-900">
+                        <span class="inline-block bg-royal-dark text-white px-2.5 py-1 rounded-lg min-w-[40px] text-center shadow-sm">${item.totalPoints}</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        const MOBILE_COLS = ['Gare Tot.', 'Podismo', 'Triathlon', 'Ciclismo', 'Staff/Org.', 'Premio Previsto'];
+        let mobileColIdx = 0;
+
+        function setMobileCol(idx) {
+            mobileColIdx = (idx + MOBILE_COLS.length) % MOBILE_COLS.length;
+            document.getElementById('leaderboard-table').dataset.mcol = mobileColIdx;
+            document.getElementById('lb-mobile-label').textContent = MOBILE_COLS[mobileColIdx];
+            document.getElementById('lb-mobile-dots').innerHTML = MOBILE_COLS.map((_, i) =>
+                `<button type="button" onclick="setMobileCol(${i})" aria-label="${MOBILE_COLS[i]}" class="h-1.5 rounded-full transition-all ${i === mobileColIdx ? 'w-4 bg-royal-600' : 'w-1.5 bg-slate-300'}"></button>`
+            ).join('');
+        }
+
+        function shiftMobileCol(dir) { setMobileCol(mobileColIdx + dir); }
+
+        function initMobileColSwipe() {
+            const area = document.getElementById('leaderboard-scroll');
+            let startX = null, startY = null;
+            area.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+            area.addEventListener('touchend', (e) => {
+                if (startX === null || window.innerWidth >= 768) return;
+                const dx = e.changedTouches[0].clientX - startX;
+                const dy = e.changedTouches[0].clientY - startY;
+                startX = null;
+                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftMobileCol(dx < 0 ? 1 : -1);
+            }, { passive: true });
+            setMobileCol(0);
+        }
+
+        function downloadLeaderboardPDF() {
+            if (!isAdmin) return;
+            switchTab('leaderboard');
+            const filter = document.getElementById('leaderboard-filter-discipline');
+            const search = document.getElementById('leaderboard-search');
+            const prev = [filter.value, search.value];
+            filter.value = ''; search.value = '';
+            renderLeaderboard();
+            const today = new Date().toLocaleDateString('it-IT');
+            document.getElementById('print-title').textContent = `VEndurance 2026-2027 – Classifica aggiornata al ${today}`;
+            const oldTitle = document.title;
+            document.title = `Classifica_VEndurance_${new Date().toISOString().slice(0,10)}`;
+            window.print();
+            document.title = oldTitle;
+            [filter.value, search.value] = prev;
+            renderLeaderboard();
+        }
+
+        function renderPodium(sortedData) {
+            const podiumContainer = document.getElementById('podium-container');
+            podiumContainer.innerHTML = '';
+            if (sortedData.length < 3) return;
+
+            const top3 = [sortedData[1], sortedData[0], sortedData[2]];
+            const styles = [
+                { pos: '2°', order: 'order-2 md:order-none', border: 'border-slate-300', bg: 'bg-white', badge: 'bg-slate-300 text-slate-900', icon: 'text-slate-400' },
+                { pos: '1°', order: 'order-1 md:order-none', border: 'border-amber-400 shadow-md', bg: 'bg-gradient-to-b from-amber-50/60 to-white', badge: 'bg-amber-400 text-slate-900', icon: 'text-amber-500 scale-110' },
+                { pos: '3°', order: 'order-3 md:order-none', border: 'border-amber-700/30', bg: 'bg-white', badge: 'bg-amber-700 text-white', icon: 'text-amber-700' }
+            ];
+
+            top3.forEach((athlete, idx) => {
+                if(!athlete) return;
+                const st = styles[idx];
+                const div = document.createElement('div');
+                div.className = `${st.order} px-3 py-2 md:p-4 rounded-xl md:rounded-2xl border ${st.border} ${st.bg} flex flex-col justify-between`;
+                div.innerHTML = `
+                    <div class="flex md:hidden items-center gap-3">
+                        <div class="w-6 h-6 rounded-full ${st.badge} font-black text-[10px] flex items-center justify-center shrink-0">${st.pos}</div>
+                        <span class="flex-1 min-w-0 font-bold text-slate-800 text-sm truncate">${athlete.name}</span>
+                        <span class="text-base font-black text-royal-600 whitespace-nowrap">${athlete.totalPoints} <span class="text-[10px] text-slate-400 font-bold">pt</span></span>
+                    </div>
+                    <div class="hidden md:flex items-center justify-between mb-2">
+                        <div class="w-7 h-7 rounded-full ${st.badge} font-black text-xs flex items-center justify-center">${st.pos}</div>
+                        <i class="fa-solid fa-trophy text-2xl ${st.icon}"></i>
+                    </div>
+                    <div class="hidden md:block">
+                        <h3 class="font-extrabold text-slate-800 text-sm truncate">${athlete.name}</h3>
+                        <p class="text-[11px] text-slate-500 font-medium">${athlete.totalRaces} gare completate</p>
+                    </div>
+                    <div class="hidden md:flex mt-3 pt-2 border-t border-slate-100 items-center justify-between">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Punti Totali</span>
+                        <span class="text-lg font-black text-royal-600">${athlete.totalPoints}</span>
+                    </div>
+                `;
+                podiumContainer.appendChild(div);
+            });
+        }
+
+        function renderCategoryCards() {
+            const discipline = document.querySelector('input[name="discipline"]:checked').value;
+            const container = document.getElementById('category-cards-container');
+            const categories = CATEGORIES_MAP[discipline] || [];
+
+            container.innerHTML = '';
+            selectedCategoryKey = categories[0]?.key || '';
+
+            categories.forEach((cat, idx) => {
+                const isSelected = idx === 0;
+                const card = document.createElement('div');
+                card.id = `cat-card-${cat.key}`;
+                card.onclick = () => selectCategoryCard(cat.key);
+                card.className = `cursor-pointer p-3 rounded-xl border-2 transition flex flex-col justify-between ${isSelected ? 'border-royal-600 bg-royal-50/70 text-royal-800' : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'}`;
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs truncate">${cat.label}</span>
+                            <span class="font-black text-xs px-2 py-0.5 rounded-md ${isSelected ? 'bg-royal-600 text-white' : 'bg-slate-100 text-slate-700'}">${cat.points !== 'custom' ? `${cat.points} pt` : 'Atipica'}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">${cat.desc}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            updateSelectedPointsBadge();
+        }
+
+        function selectCategoryCard(key) {
+            selectedCategoryKey = key;
+            const discipline = document.querySelector('input[name="discipline"]:checked').value;
+            const categories = CATEGORIES_MAP[discipline] || [];
+
+            categories.forEach(cat => {
+                const card = document.getElementById(`cat-card-${cat.key}`);
+                if (card) {
+                    if (cat.key === key) {
+                        card.className = 'cursor-pointer p-3 rounded-xl border-2 border-royal-600 bg-royal-50/70 text-royal-800 transition flex flex-col justify-between';
+                        card.querySelector('span:last-child').className = 'font-black text-xs px-2 py-0.5 rounded-md bg-royal-600 text-white';
+                    } else {
+                        card.className = 'cursor-pointer p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 bg-white text-slate-700 transition flex flex-col justify-between';
+                        card.querySelector('span:last-child').className = 'font-black text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-700';
+                    }
+                }
+            });
+
+            const customContainer = document.getElementById('custom-points-container');
+            const selectedCat = categories.find(c => c.key === key);
+            if (selectedCat && selectedCat.points === 'custom') {
+                customContainer.classList.remove('hidden');
+            } else {
+                customContainer.classList.add('hidden');
+            }
+
+            updateSelectedPointsBadge();
+        }
+
+        function updateSelectedPointsBadge() {
+            const discipline = document.querySelector('input[name="discipline"]:checked').value;
+            const categories = CATEGORIES_MAP[discipline] || [];
+            const selectedCat = categories.find(c => c.key === selectedCategoryKey);
+
+            let points = 0;
+            if (selectedCat) {
+                if (selectedCat.points === 'custom') {
+                    points = Number(document.getElementById('custom-points-input').value) || 1;
+                } else {
+                    points = selectedCat.points;
+                }
+            }
+
+            document.getElementById('summary-points-badge').textContent = `${points} ${points === 1 ? 'Punto' : 'Punti'}`;
+        }
+
+        function renderAthletesCheckboxes() {
+            const grid = document.getElementById('athletes-checkbox-grid');
+            grid.innerHTML = '';
+
+            athletes.forEach(a => {
+                const label = document.createElement('label');
+                label.className = 'athlete-checkbox-item flex items-center p-2 bg-white rounded-lg border border-slate-200 hover:border-royal-400 cursor-pointer transition select-none';
+                label.innerHTML = `
+                    <input type="checkbox" value="${a.id}" class="athlete-checkbox rounded border-slate-300 text-royal-600 focus:ring-royal-500 w-4 h-4 mr-2.5">
+                    <span class="text-xs font-semibold text-slate-800">${a.name} ${a.notes ? `<span class="text-[10px] text-slate-400">(${a.notes})</span>` : ''}</span>
+                `;
+                grid.appendChild(label);
+            });
+        }
+
+        function filterAthletesInForm() {
+            const query = document.getElementById('athlete-search-form').value.toLowerCase().trim();
+            document.querySelectorAll('.athlete-checkbox-item').forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        }
+
+        function selectAllAthletes(status) {
+            document.querySelectorAll('.athlete-checkbox').forEach(cb => {
+                if(cb.closest('.athlete-checkbox-item').style.display !== 'none') {
+                    cb.checked = status;
+                }
+            });
+        }
+
+        async function handleAddRaceGroup(e) {
+            e.preventDefault();
+            if (!isAdmin) {
+                alert("Accesso negato! Solo i gestori possono inserire nuove gare.");
+                return;
+            }
+
+            const date = document.getElementById('race-date').value;
+            const name = document.getElementById('race-name').value.trim();
+            const discipline = document.querySelector('input[name="discipline"]:checked').value;
+            const proof = document.getElementById('race-proof').value.trim();
+
+            const selectedCheckboxes = document.querySelectorAll('.athlete-checkbox:checked');
+            const selectedAthleteIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+            if (!date || !name) {
+                alert("Inserire data e nome della gara.");
+                return;
+            }
+
+            if (selectedAthleteIds.length === 0) {
+                alert("Seleziona almeno un atleta che ha partecipato alla gara.");
+                return;
+            }
+
+            const categories = CATEGORIES_MAP[discipline] || [];
+            const selectedCat = categories.find(c => c.key === selectedCategoryKey) || categories[0];
+
+            let points = 0;
+            if (selectedCat.points === 'custom') {
+                points = Number(document.getElementById('custom-points-input').value) || 1;
+            } else {
+                points = selectedCat.points;
+            }
+
+            const newRacesToInsert = selectedAthleteIds.map(athleteId => ({
+                id: 'r_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                athleteid: athleteId,
+                date,
+                name,
+                discipline,
+                categorykey: selectedCategoryKey,
+                points,
+                proof
+            }));
+
+            const { error } = await supabaseClient.from('races').insert(newRacesToInsert);
+            if (error) {
+                alert("Errore durante il salvataggio della gara su Supabase: " + error.message);
+                return;
+            }
+
+            await loadDataFromSupabase();
+            updateHeaderStats();
+
+            document.getElementById('add-race-form').reset();
+            document.getElementById('race-date').valueAsDate = new Date();
+            renderCategoryCards();
+            selectAllAthletes(false);
+
+            switchTab('leaderboard');
+        }
+
+        function renderHistory() {
+            const tbody = document.getElementById('history-tbody');
+            const cards = document.getElementById('history-cards');
+            const searchRace = document.getElementById('history-search-race').value.toLowerCase().trim();
+            const filterAthlete = document.getElementById('history-filter-athlete').value;
+            const filterDiscipline = document.getElementById('history-filter-discipline').value;
+
+            let filtered = [...races];
+            if (searchRace) filtered = filtered.filter(r => r.name.toLowerCase().includes(searchRace));
+            if (filterAthlete) filtered = filtered.filter(r => r.athleteId === filterAthlete);
+            if (filterDiscipline) filtered = filtered.filter(r => r.discipline === filterDiscipline);
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+            tbody.innerHTML = '';
+            cards.innerHTML = '';
+
+            const selectAth = document.getElementById('history-filter-athlete');
+            selectAth.innerHTML = '<option value="">Tutti gli atleti</option>' + athletes.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+            selectAth.value = filterAthlete;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Nessuna gara trovata</td></tr>`;
+                cards.innerHTML = `<div class="py-8 text-center text-slate-400 text-sm">Nessuna gara trovata</div>`;
+                return;
+            }
+
+            filtered.forEach(race => {
+                const athlete = athletes.find(a => a.id === race.athleteId) || { name: 'Atleta Rimosso' };
+                const categories = CATEGORIES_MAP[race.discipline] || [];
+                const catObj = categories.find(c => c.key === race.categoryKey);
+                const categoryLabel = catObj ? catObj.label : race.categoryKey;
+
+                let discBadge = `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-bold">${race.discipline}</span>`;
+                if (race.discipline === 'podismo') discBadge = `<span class="bg-royal-50 text-royal-700 px-2 py-0.5 rounded text-[11px] font-bold">Podismo</span>`;
+                else if (race.discipline === 'triathlon') discBadge = `<span class="bg-sky-50 text-sky-700 px-2 py-0.5 rounded text-[11px] font-bold">Triathlon</span>`;
+                else if (race.discipline === 'ciclismo') discBadge = `<span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[11px] font-bold">Ciclismo</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-slate-500 font-medium whitespace-nowrap text-xs">${formatDate(race.date)}</td>
+                    <td class="py-3 px-4 font-bold text-slate-800">${athlete.name}</td>
+                    <td class="py-3 px-4 font-semibold text-slate-700">${race.name}</td>
+                    <td class="py-3 px-4">
+                        <div class="mb-0.5">${discBadge}</div>
+                        <div class="text-[11px] text-slate-400">${categoryLabel}</div>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="bg-slate-900 text-white font-bold text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap">${race.points} pt</span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        ${race.proof ? `<a href="${race.proof}" target="_blank" class="text-royal-600 hover:underline text-xs"><i class="fa-solid fa-link"></i> Link</a>` : '-'}
+                    </td>
+                    <td class="py-3 px-4 text-right pr-6 admin-only ${isAdmin ? '' : 'hidden'}">
+                        <button onclick="deleteRace('${race.id}')" title="Elimina Gara" class="text-slate-400 hover:text-red-600 transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                const card = document.createElement('div');
+                card.className = 'px-4 py-3 flex gap-3';
+                card.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap text-[11px] text-slate-500 font-medium">
+                            <span class="whitespace-nowrap">${formatDate(race.date)}</span>
+                            ${discBadge}
+                        </div>
+                        <div class="font-bold text-slate-800 text-sm mt-1 break-words">${athlete.name}</div>
+                        <div class="text-xs font-semibold text-slate-600 break-words">${race.name}</div>
+                        <div class="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
+                            <span>${categoryLabel}</span>
+                            ${race.proof ? `<a href="${race.proof}" target="_blank" class="text-royal-600 font-semibold whitespace-nowrap"><i class="fa-solid fa-link"></i> Link</a>` : ''}
+                        </div>
+                    </div>
+                    <div class="shrink-0 flex flex-col items-end justify-between gap-2">
+                        <span class="bg-slate-900 text-white font-black text-sm px-3 py-1 rounded-full whitespace-nowrap">${race.points} pt</span>
+                        ${isAdmin ? `<button onclick="deleteRace('${race.id}')" title="Elimina Gara" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 active:bg-red-100 active:text-red-600 flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>` : ''}
+                    </div>
+                `;
+                cards.appendChild(card);
+            });
+        }
+
+        async function deleteRace(id) {
+            if (!isAdmin) return;
+            const { error } = await supabaseClient.from('races').delete().eq('id', id);
+            if (error) {
+                alert("Errore durante l'eliminazione della gara: " + error.message);
+                return;
+            }
+            await loadDataFromSupabase();
+            renderHistory();
+            renderLeaderboard();
+            updateHeaderStats();
+        }
+
+        function renderAthletesList() {
+            const tbody = document.getElementById('athletes-tbody');
+            const cards = document.getElementById('athletes-cards');
+            tbody.innerHTML = '';
+            cards.innerHTML = '';
+            if (athletes.length === 0) {
+                cards.innerHTML = `<div class="py-8 text-center text-slate-400 text-sm">Nessun atleta in rosa</div>`;
+            }
+
+            athletes.forEach(a => {
+                const raceCount = races.filter(r => r.athleteId === a.id).length;
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-slate-800">${a.name}</td>
+                    <td class="py-3 px-4 text-slate-500">${a.notes || '-'}</td>
+                    <td class="py-3 px-4 text-center font-bold text-royal-600">${raceCount}</td>
+                    <td class="py-3 px-4 text-right pr-6">
+                        <button onclick="deleteAthlete('${a.id}')" title="Rimuovi Atleta" class="text-slate-400 hover:text-red-600 transition">
+                            <i class="fa-solid fa-user-minus"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                const card = document.createElement('div');
+                card.className = 'px-4 py-3 flex items-center gap-3';
+                card.innerHTML = `
+                    <div class="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-black text-xs shrink-0">${a.name.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-slate-800 text-sm break-words">${a.name}</div>
+                        <div class="text-[11px] text-slate-500">${a.notes || 'Nessuna nota'}</div>
+                    </div>
+                    <div class="shrink-0 text-center px-2">
+                        <div class="text-base font-black text-royal-600 leading-none">${raceCount}</div>
+                        <div class="text-[9px] text-slate-400 uppercase font-bold mt-0.5">${raceCount === 1 ? 'gara' : 'gare'}</div>
+                    </div>
+                    <button onclick="deleteAthlete('${a.id}')" title="Rimuovi Atleta" class="shrink-0 w-9 h-9 rounded-lg bg-slate-100 text-slate-500 active:bg-red-100 active:text-red-600 flex items-center justify-center">
+                        <i class="fa-solid fa-user-minus text-xs"></i>
+                    </button>
+                `;
+                cards.appendChild(card);
+            });
+        }
+
+        async function deleteAthlete(id) {
+            if (!isAdmin) return;
+            if (confirm("Sei sicuro di voler rimuovere questo atleta?")) {
+                const { error } = await supabaseClient.from('athletes').delete().eq('id', id);
+                if (error) {
+                    alert("Errore durante l'eliminazione dell'atleta: " + error.message);
+                    return;
+                }
+                await loadDataFromSupabase();
+                renderAthletesList();
+                renderAthletesCheckboxes();
+                renderLeaderboard();
+                updateHeaderStats();
+            }
+        }
+
+        function openAddAthleteModal() { document.getElementById('modal-add-athlete').classList.remove('hidden'); }
+        function closeAddAthleteModal() { document.getElementById('modal-add-athlete').classList.add('hidden'); }
+
+        async function handleAddAthlete(e) {
+            e.preventDefault();
+            if (!isAdmin) return;
+
+            const name = document.getElementById('new-athlete-name').value.trim();
+            const notes = document.getElementById('new-athlete-notes').value.trim();
+
+            if (!name) return;
+
+            const newAthlete = { id: 'a_' + Date.now(), name, notes };
+            
+            const { error } = await supabaseClient.from('athletes').insert([newAthlete]);
+            if (error) {
+                alert("Errore durante il salvataggio dell'atleta su Supabase: " + error.message);
+                return;
+            }
+
+            await loadDataFromSupabase();
+            renderAthletesCheckboxes();
+            renderAthletesList();
+            updateHeaderStats();
+
+            document.getElementById('new-athlete-name').value = '';
+            document.getElementById('new-athlete-notes').value = '';
+            closeAddAthleteModal();
+        }
+
+        function exportCSV() {
+            let csv = "Posizione,Atleta,Gare Totali,Podismo Pts,Triathlon Pts,Ciclismo Pts,Staff Pts,Punti Totali\n";
+            
+            const leaderboardData = athletes.map(athlete => {
+                const athleteRaces = races.filter(r => r.athleteId === athlete.id);
+                let totalPoints = 0, podismoPts = 0, triathlonPts = 0, ciclismoPts = 0, staffPts = 0;
+
+                athleteRaces.forEach(r => {
+                    const pts = Number(r.points) || 0;
+                    totalPoints += pts;
+                    if (r.discipline === 'podismo') podismoPts += pts;
+                    else if (r.discipline === 'triathlon') triathlonPts += pts;
+                    else if (r.discipline === 'ciclismo') ciclismoPts += pts;
+                    else if (r.discipline === 'staff') staffPts += pts;
+                });
+
+                return { name: athlete.name, totalRaces: athleteRaces.length, totalPoints, podismoPts, triathlonPts, ciclismoPts, staffPts };
+            });
+
+            leaderboardData.sort((a, b) => b.totalPoints - a.totalPoints);
+
+            leaderboardData.forEach((row, idx) => {
+                csv += `${idx + 1},"${row.name}",${row.totalRaces},${row.podismoPts},${row.triathlonPts},${row.ciclismoPts},${row.staffPts},${row.totalPoints}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Classifica_VEndurance_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportDataJSON() {
+            const data = { athletes, races };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Backup_VEndurance_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function triggerImportJSON() { document.getElementById('import-file-input').click(); }
+
+        async function importDataJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    const data = JSON.parse(evt.target.result);
+                    if (data.athletes && data.races) {
+                        await supabaseClient.from('races').delete().neq('id', '');
+                        await supabaseClient.from('athletes').delete().neq('id', '');
+                        
+                        await supabaseClient.from('athletes').insert(data.athletes);
+                        await supabaseClient.from('races').insert(data.races);
+
+                        location.reload();
+                    } else {
+                        alert("File JSON non valido per VEndurance.");
+                    }
+                } catch (err) {
+                    alert("Errore nella lettura del file di backup.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function openRulesModal() { document.getElementById('modal-rules').classList.remove('hidden'); }
+        function closeRulesModal() { document.getElementById('modal-rules').classList.add('hidden'); }
+
+        function updateHeaderStats() {
+            document.getElementById('stat-total-athletes').textContent = athletes.length;
+            document.getElementById('stat-total-races').textContent = races.length;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const p = dateStr.split('-');
+            return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : dateStr;
+        }
+    </script>
+</body>
+</html>
