@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VEndurance - Polisportiva Venturina Terme</title>
@@ -668,8 +669,14 @@
         </div>
     </div>
 
+    <div id="cloud-status" style="position:fixed;bottom:8px;left:8px;z-index:9999;font:12px sans-serif;padding:4px 10px;border-radius:999px;background:#475569;color:#fff;max-width:90vw">☁ v2 · avvio…</div>
     <!-- LOGIC SYSTEM & DATA STORAGE -->
     <script>
+        // Configurazione Supabase per VEndurance
+        const SUPABASE_URL = 'https://rrclzjtprhukmiyiwonp.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_bqJrMXcp-G0iAWLgmXVlwQ_vFMOQrBv';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
         const PIN_ADMIN = "ven2026";
         let isAdmin = false;
 
@@ -684,12 +691,12 @@
         ];
 
         const DEFAULT_RACES = [
-            { id: 'r1', athleteId: '1', date: '2026-09-15', name: 'Mezza Maratona di Livorno', discipline: 'podismo', categoryKey: 'podismo_21k', points: 3, proof: '' },
-            { id: 'r2', athleteId: '1', date: '2026-10-04', name: 'Granfondo Campagnolo Roma', discipline: 'ciclismo', categoryKey: 'ciclismo_120_179', points: 9, proof: '' },
-            { id: 'r3', athleteId: '2', date: '2026-09-20', name: 'Triathlon Sprint Elba', discipline: 'triathlon', categoryKey: 'triathlon_sprint', points: 3, proof: '' },
-            { id: 'r4', athleteId: '3', date: '2026-09-10', name: 'Giro Podistico Valli Etrusche', discipline: 'podismo', categoryKey: 'podismo_valli_etrusche', points: 2, proof: '' },
-            { id: 'r5', athleteId: '3', date: '2026-10-18', name: 'Chianti Ultra Trail (43k)', discipline: 'podismo', categoryKey: 'podismo_43_65', points: 6, proof: '' },
-            { id: 'r6', athleteId: '4', date: '2026-09-05', name: 'Staff Organizzativo Corsa Campestre', discipline: 'staff', categoryKey: 'staff_org', points: 3, proof: '' }
+            { id: 'r1', athleteid: '1', date: '2026-09-15', name: 'Mezza Maratona di Livorno', discipline: 'podismo', categorykey: 'podismo_21k', points: 3, proof: '' },
+            { id: 'r2', athleteid: '1', date: '2026-10-04', name: 'Granfondo Campagnolo Roma', discipline: 'ciclismo', categorykey: 'ciclismo_120_179', points: 9, proof: '' },
+            { id: 'r3', athleteid: '2', date: '2026-09-20', name: 'Triathlon Sprint Elba', discipline: 'triathlon', categorykey: 'triathlon_sprint', points: 3, proof: '' },
+            { id: 'r4', athleteid: '3', date: '2026-09-10', name: 'Giro Podistico Valli Etrusche', discipline: 'podismo', categorykey: 'podismo_valli_etrusche', points: 2, proof: '' },
+            { id: 'r5', athleteid: '3', date: '2026-10-18', name: 'Chianti Ultra Trail (43k)', discipline: 'podismo', categorykey: 'podismo_43_65', points: 6, proof: '' },
+            { id: 'r6', athleteid: '4', date: '2026-09-05', name: 'Staff Organizzativo Corsa Campestre', discipline: 'staff', categorykey: 'staff_org', points: 3, proof: '' }
         ];
 
         const CATEGORIES_MAP = {
@@ -729,8 +736,48 @@
         let races = [];
         let selectedCategoryKey = '';
 
-        window.onload = function() {
-            loadData();
+
+
+        let _rtState = '';
+        function setCloud(ok, msg) {
+            const el = document.getElementById('cloud-status');
+            if (!el) return;
+            el.style.background = ok ? '#047857' : '#b91c1c';
+            el.textContent = (ok ? '☁ v2 · ' : '☁ v2 · ERRORE: ') + msg + (ok && _rtState ? ' · live ' + _rtState : '');
+        }
+
+        // --- SINCRONIZZAZIONE TRA DISPOSITIVI ---
+        let _syncTimer = null, _syncBusy = false;
+        function scheduleRefresh() {
+            clearTimeout(_syncTimer);
+            _syncTimer = setTimeout(refreshAll, 400);
+        }
+        async function refreshAll() {
+            if (_syncBusy) return;
+            _syncBusy = true;
+            try {
+                const prevAth = athletes.map(a => a.id + a.name).join('|');
+                await loadDataFromSupabase(true);
+                renderLeaderboard();
+                renderHistory();
+                renderAthletesList();
+                if (prevAth !== athletes.map(a => a.id + a.name).join('|')) renderAthletesCheckboxes();
+                updateHeaderStats();
+            } finally { _syncBusy = false; }
+        }
+        function startSync() {
+            try {
+                supabaseClient.channel('vendurance-sync')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'races' }, scheduleRefresh)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'athletes' }, scheduleRefresh)
+                    .subscribe((st) => { _rtState = (st === 'SUBSCRIBED') ? 'ok' : 'non attivo'; });
+            } catch (e) { console.warn('Realtime non disponibile', e); }
+            setInterval(scheduleRefresh, 30000);
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleRefresh(); });
+        }
+
+        window.onload = async function() {
+            await loadDataFromSupabase();
             loadCustomLogo();
             renderCategoryCards();
             renderAthletesCheckboxes();
@@ -742,23 +789,36 @@
             updateAdminUI();
 
             document.getElementById('race-date').valueAsDate = new Date();
+            startSync();
         };
 
-        function loadData() {
-            const storedAthletes = localStorage.getItem('vendurance_v2_athletes');
-            const storedRaces = localStorage.getItem('vendurance_v2_races');
+        async function loadDataFromSupabase(silent = false) {
+            try {
+                const { data: dbAthletes, error: errAth } = await supabaseClient.from('athletes').select('*');
+                if (errAth) throw errAth;
 
-            athletes = storedAthletes ? JSON.parse(storedAthletes) : [...DEFAULT_ATHLETES];
-            races = storedRaces ? JSON.parse(storedRaces) : [...DEFAULT_RACES];
+                athletes = (dbAthletes || []).map(a => ({ id: String(a.id), name: a.name, notes: a.notes || '' }));
 
-            if (!storedAthletes) saveAthletes();
-            if (!storedRaces) saveRaces();
+                const { data: dbRaces, error: errRac } = await supabaseClient.from('races').select('*');
+                if (errRac) throw errRac;
+
+                races = (dbRaces || []).map(r => ({
+                    id: String(r.id),
+                    athleteId: String(r.athleteid || r.athleteId),
+                    date: r.date,
+                    name: r.name,
+                    discipline: r.discipline,
+                    categoryKey: r.categorykey || r.categoryKey,
+                    points: Number(r.points) || 0,
+                    proof: r.proof || ''
+                }));
+                setCloud(true, 'connesso · ' + athletes.length + ' atleti, ' + races.length + ' gare');
+            } catch (err) {
+                setCloud(false, (err && (err.message || err.details)) || 'connessione fallita');
+                console.error("Errore di caricamento da Supabase:", err);
+                if (!silent) alert("Impossibile connettersi al database cloud. Verifica la connessione.");
+            }
         }
-
-        function saveAthletes() { localStorage.setItem('vendurance_v2_athletes', JSON.stringify(athletes)); }
-        function saveRaces() { localStorage.setItem('vendurance_v2_races', JSON.stringify(races)); }
-
-        // --- AUTHENTICATION & PIN GESTORE ---
 
         function openAdminModal() { document.getElementById('modal-admin-login').classList.remove('hidden'); }
         function closeAdminModal() { 
@@ -806,8 +866,6 @@
             }
             renderHistory();
         }
-
-        // --- CUSTOM LOGO LOGIC ---
 
         function triggerLogoUpload() {
             document.getElementById('logo-file-input').click();
@@ -862,8 +920,6 @@
             if(tabId === 'athletes') renderAthletesList();
         }
 
-        // --- RENDER CLASSIFICA ---
-
         function renderLeaderboard() {
             const tbody = document.getElementById('leaderboard-tbody');
             const searchTerm = document.getElementById('leaderboard-search').value.toLowerCase().trim();
@@ -905,7 +961,6 @@
 
             leaderboardData.sort((a, b) => (b.totalPoints !== a.totalPoints) ? (b.totalPoints - a.totalPoints) : (b.totalRaces - a.totalRaces));
 
-            // Podio e medaglie solo nella classifica generale (nessun filtro disciplina attivo)
             renderPodium(filterDisc ? [] : leaderboardData);
 
             const filteredData = leaderboardData.filter(item => item.name.toLowerCase().includes(searchTerm));
@@ -924,7 +979,7 @@
                 let rankDisplay = `<span class="font-bold text-slate-400">${realRank}°</span>`;
 
                 if (filterDisc) {
-                    // Classifica filtrata per disciplina: nessuna posizione oro/argento/bronzo né premi
+                    // Nessun premio per filtri singoli
                 } else if (realRank === 1) {
                     prizeBadge = '<span class="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-2 py-0.5 rounded-md inline-flex items-center gap-1"><i class="fa-solid fa-crown text-amber-500"></i> Iscrizione 100% Free</span>';
                     rankDisplay = `<div class="w-7 h-7 rounded-full bg-amber-400 text-slate-900 font-black text-xs flex items-center justify-center shadow-sm mx-auto">1</div>`;
@@ -970,7 +1025,6 @@
             });
         }
 
-        // --- CLASSIFICA SU TELEFONO: colonna centrale scorrevole ---
         const MOBILE_COLS = ['Gare Tot.', 'Podismo', 'Triathlon', 'Ciclismo', 'Staff/Org.', 'Premio Previsto'];
         let mobileColIdx = 0;
 
@@ -1059,8 +1113,6 @@
                 podiumContainer.appendChild(div);
             });
         }
-
-        // --- FORM MULTI-ATLETA & DISCIPLINE ---
 
         function renderCategoryCards() {
             const discipline = document.querySelector('input[name="discipline"]:checked').value;
@@ -1169,10 +1221,10 @@
             });
         }
 
-        function handleAddRaceGroup(e) {
+        async function handleAddRaceGroup(e) {
             e.preventDefault();
             if (!isAdmin) {
-                alert("Acceso negato! Solo i gestori possono inserire nuove gare.");
+                alert("Accesso negato! Solo i gestori possono inserire nuove gare.");
                 return;
             }
 
@@ -1204,21 +1256,24 @@
                 points = selectedCat.points;
             }
 
-            selectedAthleteIds.forEach(athleteId => {
-                const newRace = {
-                    id: 'r_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                    athleteId,
-                    date,
-                    name,
-                    discipline,
-                    categoryKey: selectedCategoryKey,
-                    points,
-                    proof
-                };
-                races.unshift(newRace);
-            });
+            const newRacesToInsert = selectedAthleteIds.map(athleteId => ({
+                id: 'r_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                athleteid: athleteId,
+                date,
+                name,
+                discipline,
+                categorykey: selectedCategoryKey,
+                points,
+                proof
+            }));
 
-            saveRaces();
+            const { error } = await supabaseClient.from('races').insert(newRacesToInsert);
+            if (error) {
+                alert("Errore durante il salvataggio della gara su Supabase: " + error.message);
+                return;
+            }
+
+            await loadDataFromSupabase();
             updateHeaderStats();
 
             document.getElementById('add-race-form').reset();
@@ -1228,8 +1283,6 @@
 
             switchTab('leaderboard');
         }
-
-        // --- STORICO & ROSA ATLETI ---
 
         function renderHistory() {
             const tbody = document.getElementById('history-tbody');
@@ -1316,11 +1369,16 @@
             });
         }
 
-        function deleteRace(id) {
+        async function deleteRace(id) {
             if (!isAdmin) return;
-            races = races.filter(r => r.id !== id);
-            saveRaces();
+            const { error } = await supabaseClient.from('races').delete().eq('id', id);
+            if (error) {
+                alert("Errore durante l'eliminazione della gara: " + error.message);
+                return;
+            }
+            await loadDataFromSupabase();
             renderHistory();
+            renderLeaderboard();
             updateHeaderStats();
         }
 
@@ -1369,13 +1427,18 @@
             });
         }
 
-        function deleteAthlete(id) {
+        async function deleteAthlete(id) {
             if (!isAdmin) return;
-            if (confirm("Sei sicuro di voler rimuovere questo atleta? Le sue gare rimarranno salvate ma non comparirà più in rosa.")) {
-                athletes = athletes.filter(a => a.id !== id);
-                saveAthletes();
+            if (confirm("Sei sicuro di voler rimuovere questo atleta?")) {
+                const { error } = await supabaseClient.from('athletes').delete().eq('id', id);
+                if (error) {
+                    alert("Errore durante l'eliminazione dell'atleta: " + error.message);
+                    return;
+                }
+                await loadDataFromSupabase();
                 renderAthletesList();
                 renderAthletesCheckboxes();
+                renderLeaderboard();
                 updateHeaderStats();
             }
         }
@@ -1383,7 +1446,7 @@
         function openAddAthleteModal() { document.getElementById('modal-add-athlete').classList.remove('hidden'); }
         function closeAddAthleteModal() { document.getElementById('modal-add-athlete').classList.add('hidden'); }
 
-        function handleAddAthlete(e) {
+        async function handleAddAthlete(e) {
             e.preventDefault();
             if (!isAdmin) return;
 
@@ -1393,9 +1456,14 @@
             if (!name) return;
 
             const newAthlete = { id: 'a_' + Date.now(), name, notes };
-            athletes.push(newAthlete);
-            saveAthletes();
+            
+            const { error } = await supabaseClient.from('athletes').insert([newAthlete]);
+            if (error) {
+                alert("Errore durante il salvataggio dell'atleta su Supabase: " + error.message);
+                return;
+            }
 
+            await loadDataFromSupabase();
             renderAthletesCheckboxes();
             renderAthletesList();
             updateHeaderStats();
@@ -1404,8 +1472,6 @@
             document.getElementById('new-athlete-notes').value = '';
             closeAddAthleteModal();
         }
-
-        // --- EXPORT & IMPORT DATA ---
 
         function exportCSV() {
             let csv = "Posizione,Atleta,Gare Totali,Podismo Pts,Triathlon Pts,Ciclismo Pts,Staff Pts,Punti Totali\n";
@@ -1454,19 +1520,21 @@
 
         function triggerImportJSON() { document.getElementById('import-file-input').click(); }
 
-        function importDataJSON(e) {
+        async function importDataJSON(e) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(evt) {
+            reader.onload = async function(evt) {
                 try {
                     const data = JSON.parse(evt.target.result);
                     if (data.athletes && data.races) {
-                        athletes = data.athletes;
-                        races = data.races;
-                        saveAthletes();
-                        saveRaces();
+                        await supabaseClient.from('races').delete().neq('id', '');
+                        await supabaseClient.from('athletes').delete().neq('id', '');
+                        
+                        await supabaseClient.from('athletes').insert(data.athletes);
+                        await supabaseClient.from('races').insert(data.races);
+
                         location.reload();
                     } else {
                         alert("File JSON non valido per VEndurance.");
