@@ -812,6 +812,10 @@
                     points: Number(r.points) || 0,
                     proof: r.proof || ''
                 }));
+                try {
+                    const { data: st } = await supabaseClient.from('settings').select('value').eq('key', 'logo').maybeSingle();
+                    if (st && st.value) displayCustomLogo(st.value);
+                } catch (e) { console.warn('Logo cloud non disponibile', e); }
                 setCloud(true, 'connesso · ' + athletes.length + ' atleti, ' + races.length + ' gare');
             } catch (err) {
                 setCloud(false, (err && (err.message || err.details)) || 'connessione fallita');
@@ -874,22 +878,26 @@
         function handleLogoUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
-
+            if (!isAdmin) { alert("Solo i gestori possono cambiare il logo."); return; }
             const reader = new FileReader();
             reader.onload = function(evt) {
-                const base64Img = evt.target.result;
-                localStorage.setItem('vendurance_custom_logo', base64Img);
-                displayCustomLogo(base64Img);
+                const img = new Image();
+                img.onload = async function() {
+                    const k = Math.min(1, 300 / Math.max(img.width, img.height));
+                    const c = document.createElement('canvas');
+                    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                    const dataUrl = c.toDataURL('image/jpeg', 0.85);
+                    const { error } = await supabaseClient.from('settings').upsert({ key: 'logo', value: dataUrl });
+                    if (error) { alert("Errore nel salvataggio del logo: " + error.message + " (hai creato la tabella 'settings'?)"); return; }
+                    displayCustomLogo(dataUrl);
+                };
+                img.src = evt.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-        function loadCustomLogo() {
-            const savedLogo = localStorage.getItem('vendurance_custom_logo');
-            if (savedLogo) {
-                displayCustomLogo(savedLogo);
-            }
-        }
+        function loadCustomLogo() { /* il logo ora arriva dal cloud (tabella settings) */ }
 
         function displayCustomLogo(src) {
             const imgLogo = document.getElementById('custom-logo-img');
