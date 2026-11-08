@@ -441,7 +441,7 @@
                             <i class="fa-solid fa-clock-rotate-left text-royal-600"></i>
                             Registro Generale Gare Registrate
                         </h2>
-                        <p class="text-xs text-slate-500">Storico completo. I gestori possono cancellare inserimenti errati.</p>
+                        <p class="text-xs text-slate-500">Gare in ordine di data con i partecipanti. I gestori possono modificarle o eliminarle.</p>
                     </div>
 
                     <div class="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full sm:w-auto">
@@ -464,10 +464,16 @@
                     </div>
                 </div>
 
+                <div class="px-5 py-3 flex gap-2 border-b border-slate-100">
+                    <button id="hv-gara" type="button" onclick="setHistView('gara')">Per gara</button>
+                    <button id="hv-atleta" type="button" onclick="setHistView('atleta')">Per atleta</button>
+                </div>
+                <div id="history-groups" class="divide-y divide-slate-100"></div>
+
                 <!-- Schede gare (solo telefono) -->
                 <div id="history-cards" class="md:hidden divide-y divide-slate-100"></div>
 
-                <div class="hidden md:block overflow-x-auto custom-scrollbar">
+                <div id="history-table-wrap" class="hidden md:block overflow-x-auto custom-scrollbar">
                     <table class="w-full text-left border-collapse min-w-[750px]">
                         <thead>
                             <tr class="bg-slate-100/80 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
@@ -512,7 +518,7 @@
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-slate-100/80 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
-                                <th class="py-3 px-4">Nome e Cognome</th>
+                                <th class="py-3 px-4">Cognome e Nome</th>
                                 <th class="py-3 px-4">Categoria / Note</th>
                                 <th class="py-3 px-4 text-center">Gare Svolte</th>
                                 <th class="py-3 px-4 text-right pr-6">Azione</th>
@@ -576,8 +582,8 @@
             </div>
             <form onsubmit="handleAddAthlete(event)" class="p-5 space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nome e Cognome *</label>
-                    <input type="text" id="new-athlete-name" required placeholder="Es. Mario Rossi" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Cognome e Nome *</label>
+                    <input type="text" id="new-athlete-name" required placeholder="Es. Rossi Mario" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-royal-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Categoria / Note (Opzionale)</label>
@@ -592,6 +598,50 @@
     </div>
 
     <!-- MODAL REGOLAMENTO -->
+    <div id="modal-edit-race" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="header-bg text-white p-4 flex items-center justify-between shrink-0">
+                <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-pen text-sky-300"></i> Modifica gara</h3>
+                <button onclick="closeRaceEdit()" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nome gara</label>
+                    <input type="text" id="er-name" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Data</label>
+                        <input type="date" id="er-date" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Categoria</label>
+                        <select id="er-cat" onchange="erCatChange()" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold"></select>
+                    </div>
+                </div>
+                <div id="er-custom-wrap" class="hidden">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Punti (1-12)</label>
+                    <input type="number" id="er-custom" min="1" max="12" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Link / prova</label>
+                    <input type="text" id="er-proof" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Partecipanti</label>
+                    <div id="er-athletes" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto"></div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100 flex items-center justify-between gap-2 shrink-0">
+                <button type="button" onclick="deleteRaceGroup()" class="text-xs font-bold text-red-600 hover:underline"><i class="fa-solid fa-trash-can"></i> Elimina gara</button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeRaceEdit()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-bold transition">Annulla</button>
+                    <button type="button" onclick="saveRaceEdit()" class="px-5 py-2 rounded-xl bg-royal-600 hover:bg-royal-800 text-white text-xs font-bold transition">Salva</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-athlete" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4" onclick="if(event.target===this)closeAthleteModal()">
         <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
             <div class="header-bg text-white p-4 flex items-center justify-between shrink-0">
@@ -1289,11 +1339,15 @@
             document.getElementById('summary-points-badge').textContent = `${points} ${points === 1 ? 'Punto' : 'Punti'}`;
         }
 
+        function sortedAlpha(list) {
+            return [...list].sort((a, b) => String(a.name).localeCompare(String(b.name), 'it', { sensitivity: 'base' }));
+        }
+
         function renderAthletesCheckboxes() {
             const grid = document.getElementById('athletes-checkbox-grid');
             grid.innerHTML = '';
 
-            athletes.forEach(a => {
+            sortedAlpha(athletes).forEach(a => {
                 const label = document.createElement('label');
                 label.className = 'athlete-checkbox-item flex items-center p-2 bg-white rounded-lg border border-slate-200 hover:border-royal-400 cursor-pointer transition select-none';
                 label.innerHTML = `
@@ -1383,12 +1437,153 @@
             switchTab('leaderboard');
         }
 
+        // --- REGISTRO PER GARA (raggruppato, con modifica) ---
+        let histView = 'gara', _groupsCache = [], editingKey = null;
+        const DISC_NAMES = { podismo: 'Podismo/Trail', triathlon: 'Triathlon', ciclismo: 'Ciclismo', staff: 'Staff/Org.' };
+        const MONTHS_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+        function setHistView(v) { histView = v; renderHistory(); }
+
+        function raceGroups() {
+            const map = new Map();
+            races.forEach(r => {
+                const k = [r.date, String(r.name).trim().toLowerCase(), r.categoryKey, r.points].join('|');
+                if (!map.has(k)) map.set(k, { key: k, date: r.date, name: r.name, discipline: r.discipline, categoryKey: r.categoryKey, points: r.points, proof: r.proof, entries: [] });
+                map.get(k).entries.push(r);
+            });
+            return [...map.values()];
+        }
+
+        function renderRaceGroups(search, ath, disc) {
+            const box = document.getElementById('history-groups');
+            const gs = raceGroups().filter(g =>
+                (!search || String(g.name).toLowerCase().includes(search)) &&
+                (!disc || g.discipline === disc) &&
+                (!ath || g.entries.some(e => e.athleteId === ath)));
+            gs.sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(a.name).localeCompare(String(b.name), 'it'));
+            _groupsCache = gs;
+            if (!gs.length) { box.innerHTML = '<div class="py-8 text-center text-slate-400 text-sm">Nessuna gara trovata</div>'; return; }
+            let html = '', lastM = '';
+            gs.forEach((g, i) => {
+                const m = String(g.date).slice(0, 7);
+                if (m !== lastM) {
+                    lastM = m;
+                    const [y, mm] = m.split('-');
+                    html += `<div class="px-5 py-2 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">${MONTHS_IT[(+mm || 1) - 1]} ${escH(y)}</div>`;
+                }
+                const cat = (CATEGORIES_MAP[g.discipline] || []).find(c => c.key === g.categoryKey);
+                const names = g.entries.map(e => (athletes.find(a => a.id === e.athleteId) || { name: 'Atleta rimosso' }).name)
+                    .sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+                const chips = names.map(n => `<span class="inline-block bg-slate-100 text-slate-700 text-[11px] font-semibold px-2 py-0.5 rounded-full">${escH(n)}</span>`).join(' ');
+                const link = /^https?:\/\//.test(g.proof || '') ? ` · <a href="${escH(g.proof)}" target="_blank" rel="noopener" class="text-royal-600 underline">prova</a>` : '';
+                html += `<div class="px-5 py-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="text-[11px] text-slate-500 font-medium">${formatDate(g.date)} · ${escH(DISC_NAMES[g.discipline] || g.discipline)}${cat ? ' · ' + escH(cat.label) : ''}${link}</div>
+                            <div class="font-bold text-slate-800 text-sm break-words">${escH(g.name)}</div>
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <span class="bg-slate-900 text-white font-bold text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap">${g.points} pt</span>
+                            ${isAdmin ? `<button onclick="openRaceEdit(${i})" class="block mt-2 ml-auto text-xs font-bold text-royal-600 hover:underline"><i class="fa-solid fa-pen"></i> Modifica</button>` : ''}
+                        </div>
+                    </div>
+                    <div class="mt-2 text-[11px] text-slate-400">${names.length} ${names.length === 1 ? 'partecipante' : 'partecipanti'}</div>
+                    <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
+                </div>`;
+            });
+            box.innerHTML = html;
+        }
+
+        function erCatChange() {
+            const g = raceGroups().find(x => x.key === editingKey);
+            const cat = ((g && CATEGORIES_MAP[g.discipline]) || []).find(c => c.key === document.getElementById('er-cat').value);
+            document.getElementById('er-custom-wrap').classList.toggle('hidden', !(cat && cat.points === 'custom'));
+        }
+
+        function openRaceEdit(i) {
+            if (!isAdmin) return;
+            const g = _groupsCache[i];
+            if (!g) return;
+            editingKey = g.key;
+            document.getElementById('er-name').value = g.name;
+            document.getElementById('er-date').value = g.date;
+            document.getElementById('er-proof').value = g.proof || '';
+            document.getElementById('er-custom').value = g.points;
+            const sel = document.getElementById('er-cat');
+            sel.innerHTML = (CATEGORIES_MAP[g.discipline] || []).map(c => `<option value="${c.key}">${escH(c.label)}${c.points === 'custom' ? '' : ' (' + c.points + ' pt)'}</option>`).join('');
+            sel.value = g.categoryKey;
+            erCatChange();
+            const cur = new Set(g.entries.map(e => e.athleteId));
+            document.getElementById('er-athletes').innerHTML = sortedAlpha(athletes).map(a =>
+                `<label class="flex items-center gap-2 p-1.5 rounded-lg border border-slate-200 text-xs"><input type="checkbox" class="er-ath" value="${escH(a.id)}" ${cur.has(a.id) ? 'checked' : ''}> ${escH(a.name)}</label>`).join('');
+            document.getElementById('modal-edit-race').classList.remove('hidden');
+        }
+        function closeRaceEdit() { document.getElementById('modal-edit-race').classList.add('hidden'); editingKey = null; }
+
+        async function afterRaceChange() {
+            await loadDataFromSupabase(true);
+            renderHistory(); renderLeaderboard(); updateHeaderStats();
+        }
+
+        async function saveRaceEdit() {
+            if (!isAdmin) return;
+            const g = raceGroups().find(x => x.key === editingKey);
+            if (!g) { closeRaceEdit(); return; }
+            const name = document.getElementById('er-name').value.trim();
+            const date = document.getElementById('er-date').value;
+            const proof = document.getElementById('er-proof').value.trim();
+            if (!name || !date) { alert("Inserisci nome e data della gara."); return; }
+            const catKey = document.getElementById('er-cat').value || g.categoryKey;
+            const cat = (CATEGORIES_MAP[g.discipline] || []).find(c => c.key === catKey);
+            let points = cat ? cat.points : g.points;
+            if (points === 'custom') points = Math.min(12, Math.max(1, Number(document.getElementById('er-custom').value) || 1));
+            const checked = new Set(Array.from(document.querySelectorAll('.er-ath:checked')).map(cb => cb.value));
+            if (checked.size === 0) { alert("Seleziona almeno un partecipante, oppure usa «Elimina gara»."); return; }
+            const keep = g.entries.filter(e => checked.has(e.athleteId));
+            const remove = g.entries.filter(e => !checked.has(e.athleteId));
+            const had = new Set(g.entries.map(e => e.athleteId));
+            const add = [...checked].filter(id => !had.has(id)).map(athleteid => ({
+                id: 'r_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                athleteid, date, name, discipline: g.discipline, categorykey: catKey, points, proof
+            }));
+            try {
+                if (keep.length) { const { error } = await supabaseClient.from('races').update({ name, date, categorykey: catKey, points, proof }).in('id', keep.map(e => e.id)); if (error) throw error; }
+                if (add.length) { const { error } = await supabaseClient.from('races').insert(add); if (error) throw error; }
+                if (remove.length) { const { error } = await supabaseClient.from('races').delete().in('id', remove.map(e => e.id)); if (error) throw error; }
+            } catch (e) {
+                alert("Errore durante il salvataggio: " + ((e && e.message) || e));
+                await afterRaceChange();
+                return;
+            }
+            closeRaceEdit();
+            await afterRaceChange();
+        }
+
+        async function deleteRaceGroup() {
+            if (!isAdmin) return;
+            const g = raceGroups().find(x => x.key === editingKey);
+            if (!g) return;
+            if (!confirm(`Eliminare la gara «${g.name}»? I punti verranno tolti a tutti i ${g.entries.length} partecipanti.`)) return;
+            const { error } = await supabaseClient.from('races').delete().in('id', g.entries.map(e => e.id));
+            if (error) { alert("Errore durante l'eliminazione: " + error.message); return; }
+            closeRaceEdit();
+            await afterRaceChange();
+        }
+
         function renderHistory() {
             const tbody = document.getElementById('history-tbody');
             const cards = document.getElementById('history-cards');
             const searchRace = document.getElementById('history-search-race').value.toLowerCase().trim();
             const filterAthlete = document.getElementById('history-filter-athlete').value;
             const filterDiscipline = document.getElementById('history-filter-discipline').value;
+
+            const isG = histView === 'gara';
+            document.getElementById('history-groups').style.display = isG ? '' : 'none';
+            document.getElementById('history-cards').style.display = isG ? 'none' : '';
+            document.getElementById('history-table-wrap').style.display = isG ? 'none' : '';
+            ['gara', 'atleta'].forEach(v => {
+                document.getElementById('hv-' + v).className = 'px-3 py-1.5 rounded-lg text-xs font-bold border ' + (histView === v ? 'bg-royal-dark text-white border-transparent' : 'bg-white text-slate-600 border-slate-200');
+            });
 
             let filtered = [...races];
             if (searchRace) filtered = filtered.filter(r => r.name.toLowerCase().includes(searchRace));
@@ -1400,8 +1595,10 @@
             cards.innerHTML = '';
 
             const selectAth = document.getElementById('history-filter-athlete');
-            selectAth.innerHTML = '<option value="">Tutti gli atleti</option>' + athletes.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+            selectAth.innerHTML = '<option value="">Tutti gli atleti</option>' + sortedAlpha(athletes).map(a => `<option value="${a.id}">${a.name}</option>`).join('');
             selectAth.value = filterAthlete;
+
+            if (isG) { renderRaceGroups(searchRace, filterAthlete, filterDiscipline); return; }
 
             if (filtered.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Nessuna gara trovata</td></tr>`;
@@ -1490,7 +1687,7 @@
                 cards.innerHTML = `<div class="py-8 text-center text-slate-400 text-sm">Nessun atleta in rosa</div>`;
             }
 
-            athletes.forEach(a => {
+            sortedAlpha(athletes).forEach(a => {
                 const raceCount = races.filter(r => r.athleteId === a.id).length;
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 transition';
@@ -1606,8 +1803,13 @@
             document.body.removeChild(link);
         }
 
+        function currentLogoData() {
+            const src = document.getElementById('custom-logo-img').src || '';
+            return src.startsWith('data:image') ? src : '';
+        }
+
         function exportDataJSON() {
-            const data = { athletes, races };
+            const data = { app: 'vendurance', version: 2, exportedAt: new Date().toISOString(), athletes, races, logo: currentLogoData() };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
@@ -1620,27 +1822,57 @@
         function triggerImportJSON() { document.getElementById('import-file-input').click(); }
 
         async function importDataJSON(e) {
-            const file = e.target.files[0];
+            const input = e.target;
+            const file = input.files[0];
             if (!file) return;
+            if (!isAdmin) { alert("Solo i gestori possono ripristinare un backup."); input.value = ''; return; }
 
             const reader = new FileReader();
             reader.onload = async function(evt) {
-                try {
-                    const data = JSON.parse(evt.target.result);
-                    if (data.athletes && data.races) {
-                        await supabaseClient.from('races').delete().neq('id', '');
-                        await supabaseClient.from('athletes').delete().neq('id', '');
-                        
-                        await supabaseClient.from('athletes').insert(data.athletes);
-                        await supabaseClient.from('races').insert(data.races);
+                let data;
+                try { data = JSON.parse(evt.target.result); } catch (err) { alert("Errore nella lettura del file di backup."); input.value = ''; return; }
+                if (!data || !Array.isArray(data.athletes) || !Array.isArray(data.races)) { alert("File JSON non valido per VEndurance."); input.value = ''; return; }
 
-                        location.reload();
-                    } else {
-                        alert("File JSON non valido per VEndurance.");
+                // normalizza (accetta sia i backup vecchi sia quelli nuovi)
+                const bkAth = data.athletes.map(a => ({ id: String(a.id), name: a.name, notes: a.notes || '' }));
+                const bkRaces = data.races.map(r => ({
+                    id: String(r.id),
+                    athleteid: String(r.athleteid != null ? r.athleteid : r.athleteId),
+                    date: r.date, name: r.name, discipline: r.discipline,
+                    categorykey: r.categorykey != null ? r.categorykey : r.categoryKey,
+                    points: Number(r.points) || 0,
+                    proof: r.proof || ''
+                }));
+                const athIds = new Set(bkAth.map(a => a.id));
+                const orphan = bkRaces.filter(r => !athIds.has(r.athleteid)).length;
+                if (orphan) { alert("Backup non valido: " + orphan + " gare fanno riferimento ad atleti mancanti. Non è stato modificato nulla."); input.value = ''; return; }
+
+                if (!confirm(`Ripristinare il backup?\n\nAtleti: ${bkAth.length}\nGare: ${bkRaces.length}\n\nI dati attuali verranno sostituiti da quelli del file.`)) { input.value = ''; return; }
+
+                try {
+                    // 1) prima scrivo il backup (se qualcosa va storto non ho cancellato nulla)
+                    let r1 = bkAth.length ? await supabaseClient.from('athletes').upsert(bkAth) : { error: null };
+                    if (r1.error) throw r1.error;
+                    let r2 = bkRaces.length ? await supabaseClient.from('races').upsert(bkRaces) : { error: null };
+                    if (r2.error) throw r2.error;
+                    if (data.logo) {
+                        const r3 = await supabaseClient.from('settings').upsert({ key: 'logo', value: data.logo });
+                        if (r3.error) throw r3.error;
                     }
+                    // 2) poi tolgo quello che non è nel backup
+                    const bkRaceIds = new Set(bkRaces.map(r => r.id));
+                    const extraRaces = races.filter(r => !bkRaceIds.has(r.id)).map(r => r.id);
+                    if (extraRaces.length) { const d1 = await supabaseClient.from('races').delete().in('id', extraRaces); if (d1.error) throw d1.error; }
+                    const extraAth = athletes.filter(a => !athIds.has(a.id)).map(a => a.id);
+                    if (extraAth.length) { const d2 = await supabaseClient.from('athletes').delete().in('id', extraAth); if (d2.error) throw d2.error; }
                 } catch (err) {
-                    alert("Errore nella lettura del file di backup.");
+                    alert("Ripristino non completato: " + ((err && err.message) || err) + "\nControlla i dati prima di riprovare.");
+                    await loadDataFromSupabase(true); renderLeaderboard(); renderHistory(); renderAthletesList(); renderAthletesCheckboxes(); updateHeaderStats();
+                    input.value = '';
+                    return;
                 }
+                alert("Backup ripristinato.");
+                location.reload();
             };
             reader.readAsText(file);
         }
