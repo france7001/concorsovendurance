@@ -592,6 +592,16 @@
     </div>
 
     <!-- MODAL REGOLAMENTO -->
+    <div id="modal-athlete" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4" onclick="if(event.target===this)closeAthleteModal()">
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="header-bg text-white p-4 flex items-center justify-between shrink-0">
+                <h3 id="ath-title" class="font-bold text-base"></h3>
+                <button onclick="closeAthleteModal()" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div id="ath-body" class="p-4 overflow-y-auto space-y-4 text-sm text-slate-700"></div>
+        </div>
+    </div>
+
     <div id="modal-rules" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="header-bg text-white p-4 flex items-center justify-between shrink-0">
@@ -928,6 +938,87 @@
             if(tabId === 'athletes') renderAthletesList();
         }
 
+        // --- PAGINA ATLETA ---
+        const PRIZE_BY_RANK = { 1: 'Iscrizione gratuita', 2: 'Sconto 50%', 3: 'Sconto 25%', 4: 'Sconto 12%', 5: 'Sconto 6%' };
+        function prizeLabel(rank) {
+            if (PRIZE_BY_RANK[rank]) return PRIZE_BY_RANK[rank];
+            return (rank >= 6 && rank <= 10) ? 'Gadget ufficiale' : '';
+        }
+        function nPt(n) { return n === 1 ? '1 punto' : n + ' punti'; }
+        function prizeText(rank) {
+            const l = prizeLabel(rank);
+            if (!l) return '';
+            if (rank === 1) return l + ' per l\'anno successivo';
+            if (rank <= 5) return l + ' sulla quota d\'iscrizione dell\'anno successivo';
+            return l;
+        }
+        function escH(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+        function getStandings() {
+            return athletes.map(a => {
+                const rs = races.filter(r => r.athleteId === a.id);
+                return { ...a, totalRaces: rs.length, totalPoints: rs.reduce((t, r) => t + (Number(r.points) || 0), 0) };
+            }).sort((x, y) => (y.totalPoints !== x.totalPoints) ? (y.totalPoints - x.totalPoints) : (y.totalRaces - x.totalRaces));
+        }
+
+        function openAthleteModal(id) {
+            const st = getStandings();
+            const idx = st.findIndex(a => a.id === id);
+            if (idx < 0) return;
+            const me = st[idx], rank = idx + 1;
+            const mine = races.filter(r => r.athleteId === id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+            let gap = '';
+            if (rank === 1) {
+                if (st.length > 1) gap = `<li>Sei in testa con <b>${nPt(me.totalPoints - st[1].totalPoints)}</b> di vantaggio sul 2°.</li>`;
+            } else {
+                const d1 = st[idx - 1].totalPoints - me.totalPoints;
+                gap = d1 === 0
+                    ? `<li>Sei a pari punti con il ${rank - 1}°: decide il numero di gare.</li>`
+                    : `<li>Per salire al <b>${rank - 1}°</b> posto mancano <b>${nPt(d1)}</b>.</li>`;
+                const target = rank > 10 ? 10 : (rank > 5 ? 5 : rank - 1);
+                if (target !== rank - 1) {
+                    const d2 = st[target - 1].totalPoints - me.totalPoints;
+                    gap += `<li>Per il premio del <b>${target}°</b> (${prizeLabel(target)}) ${d2 <= 0 ? 'sei a pari punti: decide il numero di gare' : `mancano <b>${nPt(d2)}</b>`}.</li>`;
+                }
+            }
+
+            const disc = { podismo: ['Podismo/Trail', 'bg-royal-600'], triathlon: ['Triathlon', 'bg-sky-500'], ciclismo: ['Ciclismo', 'bg-emerald-500'], staff: ['Staff/Org.', 'bg-purple-500'] };
+            const bars = Object.keys(disc).map(k => {
+                const pts = mine.filter(r => r.discipline === k).reduce((t, r) => t + (Number(r.points) || 0), 0);
+                if (!pts) return '';
+                const w = Math.max(6, Math.round(pts / me.totalPoints * 100));
+                return `<div><div class="flex justify-between text-xs mb-1"><span>${disc[k][0]}</span><b>${pts}</b></div><div class="h-2 bg-slate-100 rounded-full"><div class="h-2 rounded-full ${disc[k][1]}" style="width:${w}%"></div></div></div>`;
+            }).join('');
+
+            const list = mine.length ? mine.map(r => `
+                <div class="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                    <div class="min-w-0">
+                        <div class="font-semibold text-slate-800 text-sm">${escH(r.name)}</div>
+                        <div class="text-[11px] text-slate-400">${formatDate(r.date)} · ${escH((disc[r.discipline] || [r.discipline])[0])}${/^https?:\/\//.test(r.proof || '') ? ` · <a href="${escH(r.proof)}" target="_blank" rel="noopener" class="text-royal-600 underline">prova</a>` : ''}</div>
+                    </div>
+                    <span class="shrink-0 bg-royal-dark text-white text-xs font-bold px-2 py-0.5 rounded-md">+${r.points}</span>
+                </div>`).join('') : '<p class="text-slate-400 text-sm">Nessuna gara registrata.</p>';
+
+            document.getElementById('ath-title').textContent = me.name;
+            document.getElementById('ath-body').innerHTML = `
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 rounded-xl p-3"><div class="text-[10px] uppercase text-slate-400 font-bold">Posizione</div><div class="text-2xl font-black text-slate-900">${rank}°</div></div>
+                    <div class="bg-slate-50 rounded-xl p-3"><div class="text-[10px] uppercase text-slate-400 font-bold">Punti</div><div class="text-2xl font-black text-slate-900">${me.totalPoints}</div></div>
+                    <div class="bg-slate-50 rounded-xl p-3"><div class="text-[10px] uppercase text-slate-400 font-bold">Gare</div><div class="text-2xl font-black text-slate-900">${me.totalRaces}</div></div>
+                </div>
+                ${prizeLabel(rank) ? `<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">
+                    <div class="font-bold text-amber-900 mb-1">Premio attuale</div>
+                    <div class="text-sm text-slate-800">${prizeText(rank)}</div>
+                </div>` : ''}
+                ${gap ? `<ul class="text-xs space-y-1 list-disc pl-4">${gap}</ul>` : ''}
+                ${bars ? `<div class="space-y-2"><div class="text-xs font-bold text-slate-500 uppercase">Punti per disciplina</div>${bars}</div>` : ''}
+                ${me.notes ? `<div class="text-xs text-slate-500 italic">${escH(me.notes)}</div>` : ''}
+                <div><div class="text-xs font-bold text-slate-500 uppercase mb-1">Le sue gare</div>${list}</div>`;
+            document.getElementById('modal-athlete').classList.remove('hidden');
+        }
+        function closeAthleteModal() { document.getElementById('modal-athlete').classList.add('hidden'); }
+
         function renderLeaderboard() {
             const tbody = document.getElementById('leaderboard-tbody');
             const searchTerm = document.getElementById('leaderboard-search').value.toLowerCase().trim();
@@ -1016,7 +1107,7 @@
                 tr.innerHTML = `
                     <td class="py-3 px-4 text-center">${rankDisplay}</td>
                     <td class="lb-name py-3 px-4">
-                        <div class="font-bold text-slate-800">${item.name}</div>
+                        <div class="font-bold text-slate-800 cursor-pointer hover:underline" onclick="openAthleteModal('${item.id}')">${item.name}</div>
                         ${item.notes ? `<div class="text-[10px] text-slate-400">${item.notes}</div>` : ''}
                     </td>
                     <td class="mcol mcol-0 py-3 px-4 text-center font-semibold text-slate-700">${item.totalRaces}</td>
