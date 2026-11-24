@@ -72,14 +72,20 @@
             #leaderboard-table .lb-name { word-break: break-word; }
             #leaderboard-scroll { touch-action: pan-y; }
         }
+        @page { size: A4 portrait; margin: 10mm; }
         @media print {
-            header, footer, #banner-read-only, #banner-admin-active, #season-banner, #podium-container,
+            html, body { width: auto !important; min-height: 0 !important; background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            header, footer, #banner-read-only, #banner-admin-active, #season-banner, #podium-container, #cloud-status,
             .lb-mobile-switcher, .lb-controls, .lb-legend { display: none !important; }
-            body { background: #fff !important; }
+            main { max-width: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
             #leaderboard-scroll { overflow: visible !important; }
-            #leaderboard-table { min-width: 0 !important; }
-            #print-title { display: block !important; }
-            tr { break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #leaderboard-table { min-width: 0 !important; width: 100% !important; }
+            #leaderboard-table th, #leaderboard-table td { padding: 4px 5px !important; font-size: 10px !important; line-height: 1.25 !important; white-space: normal !important; }
+            #leaderboard-table .mcol { display: table-cell !important; }
+            #leaderboard-table thead { display: table-header-group; }
+            .rounded-2xl { border-radius: 0 !important; box-shadow: none !important; }
+            #print-title { display: block !important; font-size: 12px !important; }
+            tr { break-inside: avoid; page-break-inside: avoid; }
         }
     </style>
 </head>
